@@ -2417,8 +2417,8 @@ void graph_init(void) {
 }
 
 void update_battery_power_usage_label(void) {
-  static const char str_km[] = "Wh/km";
-  static const char str_mi[] = "Wh/mi";
+  static char str_km[] = "Wh/km";
+  static char str_mi[] = "Wh/mi";
 
   if(ui_vars.ui8_units_type == 0) {
     updateReadOnlyLabelStr(&batteryPowerUsageField, str_km);
@@ -2439,14 +2439,12 @@ void screen_init(void) {
 
   update_battery_power_usage_label();
 
-  ui_vars.ui8_throttle_virtual = 0;
-
 #ifndef SW102
   assistLevelField.rw->visibility = FieldVisible;
 #else
   wheelSpeedIntegerField.rw->visibility = FieldVisible;
 #endif
-  fieldAlternate.rw->visibility = FieldNotVisible;
+  motorMaxPowerField.rw->visibility = FieldNotVisible;
 
   ui_vars.ui16_street_mode_power_limit = ui_vars.ui8_street_mode_power_limit_div25 * 25;
 

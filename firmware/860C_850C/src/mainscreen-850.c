@@ -77,9 +77,8 @@ void mainScreenOnDirtyClean() {
   if (ui_vars.ui8_street_mode_function_enabled == 0)
     assist_color = MAIN_SCREEN_FIELD_LABELS_COLOR;
 
-  // if fieldAlternate is enable, do not show ASSIST
-  if ((fieldAlternate.rw->visibility == FieldTransitionVisible) ||
-      (fieldAlternate.rw->visibility == FieldVisible)) {
+  // if motorMaxPowerField is enable, do not show ASSIST
+  if (motorMaxPowerField.rw->visibility == FieldTransitionVisible) {
     UG_PutString(14, 46, "      ");
   } else {
     UG_SetForecolor(assist_color);
@@ -153,7 +152,7 @@ Screen mainScreen1 = {
     {
       .x = 2, .y = 76,
       .width = 100, .height = 70  ,
-      .field = &fieldAlternate,
+      .field = &motorMaxPowerField,
       .font = &MEDIUM_NUMBERS_TEXT_FONT,
       .label_align_y = AlignTop,
       .align_x = AlignCenter,
@@ -270,7 +269,7 @@ Screen mainScreen2 = {
     {
       .x = 2, .y = 76,
       .width = 100, .height = 70  ,
-      .field = &fieldAlternate,
+      .field = &motorMaxPowerField,
       .font = &MEDIUM_NUMBERS_TEXT_FONT,
       .label_align_y = AlignTop,
       .align_x = AlignCenter,
@@ -387,7 +386,7 @@ Screen mainScreen3 = {
     {
       .x = 2, .y = 76,
       .width = 100, .height = 70  ,
-      .field = &fieldAlternate,
+      .field = &motorMaxPowerField,
       .font = &MEDIUM_NUMBERS_TEXT_FONT,
       .label_align_y = AlignTop,
       .align_x = AlignCenter,

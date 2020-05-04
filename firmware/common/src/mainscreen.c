@@ -40,10 +40,8 @@ uint16_t ui16_m_pedal_power_filtered;
 
 uint8_t g_showNextScreenIndex = 0;
 uint8_t g_showNextScreenPreviousIndex = 0;
-uint16_t ui16_m_alternate_field_value;
-uint8_t ui8_m_alternate_field_state = 0;
-uint8_t ui8_m_alternate_field_timeout_cnt = 0;
-uint8_t ui8_m_can_increment_decrement = 0;
+uint16_t ui16_g_target_max_motor_power;
+uint8_t ui8_g_motor_max_power_state = 0;
 
 void lcd_main_screen(void);
 void warnings(void);
@@ -71,7 +69,6 @@ bool wd_failure_detected;
 
 #define MAX_TIMESTR_LEN 8 // including nul terminator
 #define MAX_BATTERY_POWER_USAGE_STR_LEN 6 // Wh/km or Wh/mi , including nul terminator
-#define MAX_ALTERNATE_USAGE_STR_LEN 10 // "max power", "throttle"  including nul terminator
 
 //
 // Fields - these might be shared my multiple screens
@@ -91,7 +88,7 @@ Field odoField = FIELD_READONLY_UINT("odometer", &ui_vars.ui32_odometer_x10, "km
 Field cadenceField = FIELD_READONLY_UINT("cadence", &ui_vars.ui8_pedal_cadence_filtered, "rpm", true, .div_digits = 0);
 Field humanPowerField = FIELD_READONLY_UINT(_S("human power", "human powr"), &ui16_m_pedal_power_filtered, "W", true, .div_digits = 0);
 Field batteryPowerField = FIELD_READONLY_UINT(_S("motor power", "motor powr"), &ui16_m_battery_power_filtered, "W", true, .div_digits = 0);
-Field fieldAlternate = FIELD_READONLY_UINT((char [MAX_ALTERNATE_USAGE_STR_LEN]){ 0 }, &ui16_m_alternate_field_value, "", 0, 2500, .div_digits = 0,);
+Field motorMaxPowerField = FIELD_READONLY_UINT(_S("max power", "max power"), &ui16_g_target_max_motor_power, "W", 0, 2500, .div_digits = 0,);
 Field batteryVoltageField = FIELD_READONLY_UINT(_S("batt voltage", "bat volts"), &ui_vars.ui16_battery_voltage_filtered_x10, "", true, .div_digits = 1);
 Field batteryCurrentField = FIELD_READONLY_UINT(_S("batt current", "bat curren"), &ui16_m_battery_current_filtered_x10, "", true, .div_digits = 1);
 Field motorCurrentField = FIELD_READONLY_UINT(_S("motor current", "mot curren"), &ui16_m_motor_current_filtered_x10, "", true, .div_digits = 1);
@@ -100,6 +97,8 @@ Field motorTempField = FIELD_READONLY_UINT(_S("motor temp", "mot temp"), &ui_var
 Field motorErpsField = FIELD_READONLY_UINT(_S("motor speed", "mot speed"), &ui_vars.ui16_motor_speed_erps, "", true, .div_digits = 0);
 Field pwmDutyField = FIELD_READONLY_UINT(_S("motor pwm", "mot pwm"), &ui_vars.ui8_duty_cycle, "", true, .div_digits = 0);
 Field motorFOCField = FIELD_READONLY_UINT(_S("motor foc", "mot foc"), &ui_vars.ui8_foc_angle, "", true, .div_digits = 0);
+
+// Note: this field label is special, the string it is pointing to must be in RAM so we can change it later
 Field batteryPowerUsageField = FIELD_READONLY_UINT((char [MAX_BATTERY_POWER_USAGE_STR_LEN]){ 0 }, &ui_vars.battery_energy_km_value_x100, "kph", true, .div_digits = 2);
 
 
@@ -379,63 +378,42 @@ bool anyscreen_onpress(buttons_events_t events) {
   return false;
 }
 
-static bool onPressAlternateField(buttons_events_t events) {
+static bool onPressMotorMaxPower(buttons_events_t events) {
   bool handled = false;
 
-  // start increment throttle only with UP_LONG_CLICK
-  if ((ui8_m_alternate_field_state == 7) &&
-      (events & UP_LONG_CLICK) &&
-      (ui8_m_can_increment_decrement == 0)) {
-    ui8_m_can_increment_decrement = 1;
-    events |= UP_CLICK; // let's increment, consider UP CLICK
-    ui8_m_alternate_field_timeout_cnt = 50; // 50 * 20ms = 1 second
-  }
-
-  if (ui8_m_alternate_field_timeout_cnt == 0) {
-    ui_vars.ui8_throttle_virtual = 0;
-    ui8_m_can_increment_decrement = 0;
-  }
-
-  switch (ui8_m_alternate_field_state) {
+  switch (ui8_g_motor_max_power_state) {
     case 0:
-      if (events & SCREENCLICK_ALTERNATE_FIELD_START) {
-        ui8_m_alternate_field_state = 1;
+      if (events & SCREENCLICK_MOTOR_MAX_POWER_START) {
+        ui8_g_motor_max_power_state = 1;
         handled = true;
       }
       break;
 
-    // max power
     case 3:
-      if (events & SCREENCLICK_ALTERNATE_FIELD_START) {
-        ui8_m_alternate_field_state = 6;
+      if (events & SCREENCLICK_MOTOR_MAX_POWER_STOP) {
+        ui8_g_motor_max_power_state = 4;
+        events = 0;
         handled = true;
-        break;
-      }
-
-      if (events & SCREENCLICK_ALTERNATE_FIELD_STOP) {
-        ui8_m_alternate_field_state = 4;
-        handled = true;
-        break;
       }
 
       if (events & UP_CLICK) {
+        events = 0;
         handled = true;
 
-        if (ui_vars.ui8_target_max_battery_power_div25 < 10) {
+        if(ui_vars.ui8_target_max_battery_power_div25 < 10) {
           ui_vars.ui8_target_max_battery_power_div25++;
         } else {
           ui_vars.ui8_target_max_battery_power_div25 += 2;
         }
 
-        // limit to 100 * 25 = 2500 Watts
-        if(ui_vars.ui8_target_max_battery_power_div25 > 100) {
-          ui_vars.ui8_target_max_battery_power_div25 = 100;
-        }
-
-        break;
+          // limit to 100 * 25 = 2500 Watts
+          if(ui_vars.ui8_target_max_battery_power_div25 > 100) {
+            ui_vars.ui8_target_max_battery_power_div25 = 100;
+          }
       }
 
       if (events & DOWN_CLICK) {
+        events = 0;
         handled = true;
 
         if (ui_vars.ui8_target_max_battery_power_div25 <= 10 &&
@@ -444,70 +422,12 @@ static bool onPressAlternateField(buttons_events_t events) {
         } else if (ui_vars.ui8_target_max_battery_power_div25 > 10) {
           ui_vars.ui8_target_max_battery_power_div25 -= 2;
         }
-
-        break;
-      }
-    break;
-
-    // virtual throttle
-    case 7:
-      if (events & SCREENCLICK_ALTERNATE_FIELD_START) {
-        ui8_m_alternate_field_state = 1;
-        handled = true;
-        break;
-      }
-
-      if (events & SCREENCLICK_ALTERNATE_FIELD_STOP) {
-        ui_vars.ui8_throttle_virtual = 0;
-        ui8_m_alternate_field_timeout_cnt = 0;
-        ui8_m_can_increment_decrement = 0;
-        ui8_m_alternate_field_state = 4;
-        handled = true;
-        break;
-      }
-
-      if (events & UP_CLICK) {
-        handled = true;
-
-        if (ui8_m_can_increment_decrement &&
-            ui_vars.ui8_assist_level) {
-          if ((ui_vars.ui8_throttle_virtual + ui_vars.ui8_throttle_virtual_step) <= 100) {
-            ui_vars.ui8_throttle_virtual += ui_vars.ui8_throttle_virtual_step;
-          } else {
-            ui_vars.ui8_throttle_virtual = 100;
-          }
-
-          ui8_m_alternate_field_timeout_cnt = 50;
-        }
-
-        break;
-      }
-
-      if (events & DOWN_CLICK) {
-        handled = true;
-
-        if (ui8_m_can_increment_decrement &&
-            ui_vars.ui8_assist_level) {
-          if (ui_vars.ui8_throttle_virtual >= ui_vars.ui8_throttle_virtual_step) {
-            ui_vars.ui8_throttle_virtual -= ui_vars.ui8_throttle_virtual_step;
-          } else {
-            ui_vars.ui8_throttle_virtual = 0;
-          }
-
-          ui8_m_alternate_field_timeout_cnt = 50;
-        }
-
-        break;
       }
     break;
   }
 
-  if (ui8_m_alternate_field_state == 7) {
-    // user will keep UP DOWN LONG clicks on this state, so, clean them to not pass to next code
-    if ((events & UP_LONG_CLICK) ||
-        (events & DOWN_LONG_CLICK))
-      handled = true;
-  }
+  // keep updating the variable to show on display
+  ui16_g_target_max_motor_power = ((uint16_t) ui_vars.ui8_target_max_battery_power_div25) * 25;
 
   return handled;
 }
@@ -538,16 +458,15 @@ static bool onPressStreetMode(buttons_events_t events) {
 bool mainScreenOnPress(buttons_events_t events) {
   bool handled = false;
 
-  handled = onPressAlternateField(events);
+  handled = anyscreen_onpress(events);
 
   if (handled == false)
-    handled = anyscreen_onpress(events);
+    handled = onPressMotorMaxPower(events);
 
   if (handled == false)
     handled = onPressStreetMode(events);
 
-  if (handled == false &&
-      ui8_m_alternate_field_state == 0) {
+  if (handled == false) {
     if (events & UP_CLICK) {
       ui_vars.ui8_assist_level++;
 
@@ -609,42 +528,33 @@ void wheel_speed(void)
 #endif
 }
 
-void alternatField(void) {
-  static const char str_max_power[] = "max power";
-  static const char str_throttle[] = "throttle";
-
-  switch (ui8_m_alternate_field_state) {
+void motorMaxPower(void) {
+  switch (ui8_g_motor_max_power_state) {
     case 1:
 #ifndef SW102
       assistLevelField.rw->visibility = FieldTransitionNotVisible;
 #else
       wheelSpeedIntegerField.rw->visibility = FieldTransitionNotVisible;
 #endif
-      ui8_m_alternate_field_state = 2;
+      ui8_g_motor_max_power_state = 2;
 
 #ifndef SW102
       UG_SetBackcolor(C_BLACK);
       UG_SetForecolor(MAIN_SCREEN_FIELD_LABELS_COLOR);
       UG_FontSelect(&FONT_10X16);
       UG_PutString(15, 46, "      ");
-#endif
       break;
+#endif
 
     case 2:
-      updateReadOnlyLabelStr(&fieldAlternate, str_max_power);
-      fieldAlternate.rw->visibility = FieldTransitionVisible;
+      motorMaxPowerField.rw->visibility = FieldTransitionVisible;
       mainScreenOnDirtyClean();
-      ui8_m_alternate_field_state = 3;
-      break;
-
-    case 3:
-      // keep updating the variable to show on display
-      ui16_m_alternate_field_value = ((uint16_t) ui_vars.ui8_target_max_battery_power_div25) * 25;
+      ui8_g_motor_max_power_state = 3;
       break;
 
     case 4:
-      fieldAlternate.rw->visibility = FieldTransitionNotVisible;
-      ui8_m_alternate_field_state = 5;
+      motorMaxPowerField.rw->visibility = FieldTransitionNotVisible;
+      ui8_g_motor_max_power_state = 5;
       break;
 
     case 5:
@@ -654,18 +564,7 @@ void alternatField(void) {
       wheelSpeedIntegerField.rw->visibility = FieldTransitionVisible;
 #endif
       mainScreenOnDirtyClean();
-      ui8_m_alternate_field_state = 0;
-      break;
-
-    case 6:
-      updateReadOnlyLabelStr(&fieldAlternate, str_throttle);
-      mainScreenOnDirtyClean();
-      ui8_m_alternate_field_state = 7;
-      break;
-
-    case 7:
-      // keep updating the variable to show on display
-      ui16_m_alternate_field_value = (uint16_t) ui_vars.ui8_throttle_virtual;
+      ui8_g_motor_max_power_state = 0;
       break;
   }
 }
@@ -705,7 +604,7 @@ void screen_clock(void) {
     motorCurrent();
     batteryPower();
     pedalPower();
-    alternatField();
+    motorMaxPower();
     streetMode();
 #ifndef SW102
     thresholds();
@@ -1128,20 +1027,6 @@ static void handle_buttons() {
     buttons_clear_onoff_click_event();
     buttons_clear_onoff_long_click_event();
     buttons_clear_onoff_click_long_click_event();
-  }
-
-  if (ui8_m_alternate_field_state == 7) { // if virtual throttle mode
-    if (buttons_get_up_state() == 0 && // UP and DOWN buttons not pressed
-            buttons_get_down_state() == 0) {
-      if (ui8_m_alternate_field_timeout_cnt) {
-        ui8_m_alternate_field_timeout_cnt--;
-      } else {
-        ui8_m_can_increment_decrement = 0;
-        ui_vars.ui8_throttle_virtual = 0;
-      }
-    } else {
-      ui8_m_alternate_field_timeout_cnt = 50;
-    }
   }
 
   if (buttons_events && firstTime == 0)
