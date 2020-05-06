@@ -2448,7 +2448,7 @@ void screen_init(void) {
 
   ui_vars.ui16_street_mode_power_limit = ui_vars.ui8_street_mode_power_limit_div25 * 25;
 
-  if (ui_vars.ui8_street_mode_function_enabled)
+  if (ui_vars.ui8_street_mode_feature_enabled)
   {
     // check to see if should be enable at startup
     if (ui_vars.ui8_street_mode_enabled_on_startup)
@@ -2493,7 +2493,7 @@ void screen_init(void) {
   batteryCurrentField.rw->editable.number.auto_thresholds = &g_vars[VarsBatteryCurrent].auto_thresholds;
   batteryCurrentField.rw->editable.number.config_warn_threshold = &g_vars[VarsBatteryCurrent].config_warn_threshold;
   batteryCurrentField.rw->editable.number.config_error_threshold = &g_vars[VarsBatteryCurrent].config_error_threshold;
-
+/*
   motorCurrentField.rw->editable.number.auto_thresholds = &g_vars[VarsMotorCurrent].auto_thresholds;
   motorCurrentField.rw->editable.number.config_warn_threshold = &g_vars[VarsMotorCurrent].config_warn_threshold;
   motorCurrentField.rw->editable.number.config_error_threshold = &g_vars[VarsMotorCurrent].config_error_threshold;
@@ -2501,7 +2501,7 @@ void screen_init(void) {
   batterySOCField.rw->editable.number.auto_thresholds = &g_vars[VarsBatterySOC].auto_thresholds;
   batterySOCField.rw->editable.number.config_warn_threshold = &g_vars[VarsBatterySOC].config_warn_threshold;
   batterySOCField.rw->editable.number.config_error_threshold = &g_vars[VarsBatterySOC].config_error_threshold;
-
+*/
   motorTempField.rw->editable.number.auto_thresholds = &g_vars[VarsMotorTemp].auto_thresholds;
   motorTempField.rw->editable.number.config_warn_threshold = &g_vars[VarsMotorTemp].config_warn_threshold;
   motorTempField.rw->editable.number.config_error_threshold = &g_vars[VarsMotorTemp].config_error_threshold;

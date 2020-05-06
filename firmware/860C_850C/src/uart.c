@@ -1,8 +1,7 @@
-
 #include "uart.h"
 #include "usart1.h"
 
-uint8_t ui8_usart1_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND];
+uint8_t ui8_usart1_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND + 3];
 
 /**
  * @brief Init UART peripheral
@@ -15,14 +14,10 @@ void uart_init(void)
 /**
  * @brief Returns pointer to RX buffer ready for parsing or NULL
  */
-const uint8_t* uart_get_rx_buffer_rdy(void)
+const uint8_t* uart_get_rx_buffer(void)
 {
-	if(!usart1_received_package()) {
-		return NULL;
-	}
-
 	uint8_t *r = usart1_get_rx_buffer();
-	usart1_reset_received_package();
+
 	return r;
 }
 

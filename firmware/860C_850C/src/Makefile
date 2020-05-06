@@ -57,6 +57,7 @@ CP      = $(TCPREFIX)objcopy
 OD      = $(TCPREFIX)objdump
 GDB     = $(TCPREFIX)gdb
 SIZE     = $(TCPREFIX)size
+STM32FLASH = /c/arduino/openocd/bin-x64/openocd.exe -s /scripts -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c "program main.bin 0x08000000 verify reset exit"
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
 # 0 = Turn off optimization. Reduce compilation time and make debugging
@@ -70,7 +71,7 @@ SIZE     = $(TCPREFIX)size
 # s = -Os enables all -O2 optimizations that do not typically increase code
 #     size.
 # (See gcc manual for further information)
-OPT = 0
+OPT = s
 
 # -mfix-cortex-m3-ldrd should be enabled by default for Cortex M3.
 # CFLAGS -H show header files
@@ -105,11 +106,11 @@ OBJECTS = $(foreach x, $(basename $(SOURCES)), $(OBJDIR)/$(x).o)
 # OPENOCD_BIN := openocd.exe
 # NRFUTIL := $(SDK_ROOT)/external_tools/Windows/nrfutil.exe
 
-OPENOCD_PATH := /usr/local/share/openocd/bin
-OPENOCD_BIN := openocd
+OPENOCD_PATH := /c/arduino/openocd/bin-x64/
+OPENOCD_BIN := openocd.exe
 NRFUTIL := nrfutil
 
-OPENOCD := '$(OPENOCD_PATH)/$(OPENOCD_BIN)' -f $(OPENOCD_PATH)/../scripts/interface/stlink.cfg -f $(OPENOCD_PATH)/../scripts/target/stm32f1x.cfg
+OPENOCD := '$(OPENOCD_PATH)/$(OPENOCD_BIN)' -f $(OPENOCD_PATH)/../scripts/interface/stlink-v2.cfg -f $(OPENOCD_PATH)/../scripts/target/stm32f1x.cfg
 
 all: main.bin size
 
@@ -121,7 +122,7 @@ clean:
 	rm -f main.lst main.elf main.bin
 	rm -rf $(OBJDIR) .deps
 
-flash_serial: main.bin 
+flash: main.bin 
 	$(STM32FLASH) main.bin
 
 # before using this unlock cpu with

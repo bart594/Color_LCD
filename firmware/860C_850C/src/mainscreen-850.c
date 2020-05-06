@@ -61,6 +61,7 @@ void mainScreenOnDirtyClean() {
   {
     UG_PutString(265, 46 , "MPH");
   }
+  
 
   // if street mode is enable, show ASSIST with regular color otherwise use orange color
   UG_COLOR assist_color;
@@ -69,21 +70,34 @@ void mainScreenOnDirtyClean() {
     if (ui_vars.ui8_street_mode_enabled) {
       assist_color = MAIN_SCREEN_FIELD_LABELS_COLOR;
     } else {
-      assist_color = C_ORANGE_RED;
+      assist_color = C_ORANGE;
     }
   }
 
   // if street mode feature is disabled, show with regular color
-  if (ui_vars.ui8_street_mode_function_enabled == 0)
+  if (ui_vars.ui8_street_mode_feature_enabled == 0)
     assist_color = MAIN_SCREEN_FIELD_LABELS_COLOR;
 
   // if motorMaxPowerField is enable, do not show ASSIST
   if (motorMaxPowerField.rw->visibility == FieldTransitionVisible) {
     UG_PutString(14, 46, "      ");
+	UG_PutString(14, 60 , "    ");
   } else {
     UG_SetForecolor(assist_color);
     UG_PutString(14, 46, "ASSIST");
   }
+  
+     // emtb mode 
+  if(ui_vars.ui8_riding_mode == eMTB_ASSIST_MODE)
+  {
+    UG_SetForecolor(C_ORANGE);
+	UG_PutString(14, 60 , "eMTB");
+  }
+  else
+  {
+    UG_PutString(14, 60 , "    ");
+  }
+  
 }
 
 void mainScreenOnPostUpdate(void) {

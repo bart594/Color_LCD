@@ -83,10 +83,10 @@ void lcd_power_off(uint8_t updateDistanceOdo)
   // now disable the power to all the system
   system_power(0);
 
-  if (g_motor_init_state == MOTOR_INIT_SIMULATING) {
+  //if (g_motor_init_state == MOTOR_INIT_SIMULATING) {
     // we are running from a bench supply on a developer's desk, so just reboot because the power supply will never die
-    sd_nvic_SystemReset();
-  }
+  //  sd_nvic_SystemReset();
+  //}
 
   // block here till we die
   while (1)
@@ -294,9 +294,9 @@ static void gui_timer_timeout(void *p_context)
   if(gui_ticks % (1000 / MSEC_PER_TICK) == 0)
     ui32_seconds_since_startup++;
   
-  if((gui_ticks % (100 / MSEC_PER_TICK) == 0) && // every 100ms
+  if((gui_ticks % (30 / MSEC_PER_TICK) == 0) && // every 30ms
       m_rt_processing_stop == false)
-    rt_processing();
+    uart_data_clock();
 }
 
 

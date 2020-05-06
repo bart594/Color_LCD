@@ -18,7 +18,19 @@
 #include "main.h"
 #include "uart.h"
 
-uint8_t ui8_rx_buffer[UART_NUMBER_DATA_BYTES_TO_RECEIVE];
+
+
+uint8_t ui8_rx_buffer[UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3];
+
+typedef struct uart_rx_buff_typedef uart_rx_buff_typedef;
+struct uart_rx_buff_typedef
+{
+  uint8_t uart_rx_data[ UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3];
+  uart_rx_buff_typedef* next_uart_rx_buff;
+};
+
+uart_rx_buff_typedef* uart_rx_buffer;
+volatile uint8_t* uart_rx_data;
 volatile uint8_t ui8_received_package_flag = 0;
 
 void usart1_init(void)
@@ -36,7 +48,7 @@ void usart1_init(void)
   DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &(USART1->DR);
   DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t) uart_get_tx_buffer();
   DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
-  DMA_InitStructure.DMA_BufferSize = UART_NUMBER_DATA_BYTES_TO_SEND;
+  DMA_InitStructure.DMA_BufferSize = UART_NUMBER_DATA_BYTES_TO_SEND + 3;
   DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
   DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
   DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
@@ -92,74 +104,84 @@ void USART1_IRQHandler()
 {
   uint8_t ui8_byte_received;
   static uint8_t ui8_state_machine = 0;
-  static uint8_t ui8_rx[UART_NUMBER_DATA_BYTES_TO_RECEIVE];
-  static uint8_t ui8_rx_cnt = 0;
-  uint8_t ui8_i;
-  uint16_t ui16_crc_rx;
+  static uint8_t ui8_rx_counter = 0;
+  //static uint8_t ui8_tx_data_index = 0;
+  //uint8_t* tx_data;
+  //tx_data = (uint8_t*) ui8_g_usart1_tx_buffer;
+
+    /* Init RX buffer */
+  static uart_rx_buff_typedef rxb1, rxb2;
+  rxb1.next_uart_rx_buff = &rxb2;
+  rxb2.next_uart_rx_buff = &rxb1;
+  uart_rx_buffer = &rxb1;
+  
 
   // The interrupt may be from Tx, Rx, or both.
-  if (USART_GetITStatus(USART1, USART_IT_ORE) == SET)
+  if(USART_GetITStatus(USART1, USART_IT_ORE) == SET)
   {
     USART_ReceiveData(USART1); // get ride of this interrupt flag
     return;
   }
-  else if (USART_GetITStatus(USART1, USART_IT_TXE) == SET)
+  else if(USART_GetITStatus(USART1, USART_IT_TXE) == SET)
   {
+    /*if(ui8_tx_data_index <= (UART_NUMBER_DATA_BYTES_TO_SEND + 3))  // bytes to send
+    {
+      // clearing the TXE bit is always performed by a write to the data register
+      USART_SendData(USART1, tx_data[ui8_tx_data_index]);
+      ++ui8_tx_data_index;
+      if(ui8_tx_data_index > (UART_NUMBER_DATA_BYTES_TO_SEND + 3))
+      {
+        // buffer empty
+        // disable TIEN (TXE)
+      ui8_tx_data_index = 0;  
+      USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
+      }
+    }*/
     USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
     return;
   }
-  else if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)
+  else if(USART_GetITStatus(USART1, USART_IT_RXNE) == SET)
   {
     // receive byte
     ui8_byte_received = (uint8_t) USART1->DR;
 
-    switch (ui8_state_machine)
+    switch(ui8_state_machine)
     {
       case 0:
-      if (ui8_byte_received == 0x43) { // see if we get start package byte
-        ui8_rx[0] = ui8_byte_received;
+      if(ui8_byte_received == 67) // see if we get start package byte
+      {
+        uart_rx_buffer->uart_rx_data[ui8_rx_counter] = ui8_byte_received;
+        ui8_rx_counter++;
         ui8_state_machine = 1;
       }
       else
+      {
+        ui8_rx_counter = 0;
         ui8_state_machine = 0;
+      }
       break;
 
       case 1:
-        ui8_rx[1] = ui8_byte_received;
-        ui8_state_machine = 2;
-      break;
+      uart_rx_buffer->uart_rx_data[ui8_rx_counter] = ui8_byte_received;
+      ui8_rx_counter++;
 
-      case 2:
-      ui8_rx[ui8_rx_cnt + 2] = ui8_byte_received;
-      ++ui8_rx_cnt;
-
-      // reset if it is the last byte of the package and index is out of bounds
-      if (ui8_rx_cnt >= ui8_rx[1])
+      // see if is the last byte of the package
+      if(ui8_rx_counter >= (UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3))
       {
-        ui8_rx_cnt = 0;
+        ui8_rx_counter = 0;
         ui8_state_machine = 0;
 
-        // just to make easy next calculations
-        ui16_crc_rx = 0xffff;
-        for (ui8_i = 0; ui8_i < ui8_rx[1]; ui8_i++)
-        {
-          crc16(ui8_rx[ui8_i], &ui16_crc_rx);
-        }
+	 /* Signal that we have a full package to be processed */
+	  
+      uart_rx_data = uart_rx_buffer->uart_rx_data;
+      /* Switch buffer */
+      uart_rx_buffer = uart_rx_buffer->next_uart_rx_buff;
 
-        // if CRC is correct read the package
-        if (((((uint16_t) ui8_rx[ui8_rx[1] + 1]) << 8) +
-              ((uint16_t) ui8_rx[ui8_rx[1]])) == ui16_crc_rx)
-        {
-          // copy to the other buffer only if we processed already the last package
-          if (ui8_received_package_flag == 0)
-          {
-            ui8_received_package_flag = 1;
-
-            // store the received data to rx_buffer
-            memcpy(ui8_rx_buffer, ui8_rx, ui8_rx[1] + 2);
-          }
-        }
       }
+      break;
+
+      default:
+      break;
     }
   }
 }
@@ -171,17 +193,26 @@ void usart1_start_dma_transfer(uint8_t ui8_len)
   DMA_Cmd(DMA1_Channel4, ENABLE);
 }
 
-uint8_t* usart1_get_rx_buffer(void)
+
+
+const uint8_t* usart1_get_rx_buffer(void)
 {
-  return ui8_rx_buffer;
+  uint8_t* rx_rdy;
+  rx_rdy = (uint8_t*) uart_rx_data;
+  uint8_t ui8_i;
+ 
+	
+  if (rx_rdy != NULL)
+  {
+    uint16_t crc_rx = 0xffff;
+    for (ui8_i = 0; ui8_i <= UART_NUMBER_DATA_BYTES_TO_RECEIVE; ui8_i++)
+      crc16(rx_rdy[ui8_i], &crc_rx);
+
+    if (((((uint16_t) rx_rdy[UART_NUMBER_DATA_BYTES_TO_RECEIVE + 2]) << 8)
+        + ((uint16_t) rx_rdy[UART_NUMBER_DATA_BYTES_TO_RECEIVE + 1])) != crc_rx)
+      rx_rdy = NULL;  // Invalidate buffer if CRC not OK
+  }
+
+  return rx_rdy;
 }
 
-uint8_t usart1_received_package(void)
-{
-  return ui8_received_package_flag;
-}
-
-void usart1_reset_received_package(void)
-{
-  ui8_received_package_flag = 0;
-}

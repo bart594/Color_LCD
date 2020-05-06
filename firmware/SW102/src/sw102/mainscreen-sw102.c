@@ -305,7 +305,7 @@ void mainScreenOnDirtyClean(void) {
 
   // find if the next lines should be draw or not (white color to draw them)
   UG_COLOR street_mode_color = C_BLACK;
-  if (ui_vars.ui8_street_mode_function_enabled &&
+  if (ui_vars.ui8_street_mode_feature_enabled &&
       ui_vars.ui8_street_mode_enabled) {
     street_mode_color = C_WHITE;
   }

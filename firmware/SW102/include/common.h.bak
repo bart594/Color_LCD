@@ -2,7 +2,6 @@
 #define INCLUDE_DEFINITIONS_H_
 
 #include "boards.h"
-#include "ble_nus.h"
 
 /*  Peripheral usage by SoftDevice 130 */
 /* Blocked
@@ -34,6 +33,5 @@
 #define UART0   0
 
 extern bool useSoftDevice;
-extern ble_nus_t   m_nus; 
 
 #endif /* INCLUDE_DEFINITIONS_H_ */

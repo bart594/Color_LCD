@@ -55,7 +55,7 @@
 #ifdef BLE_SERIAL
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
 
-static ble_nus_t                        m_nus;                                      /**< Structure to identify the Nordic UART Service. */
+ble_nus_t                        		m_nus;                                      /**< Structure to identify the Nordic UART Service. */
 #endif
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
@@ -111,7 +111,10 @@ static void gap_params_init(void)
  */
 static void nus_data_handler(ble_nus_t * p_nus, uint8_t * p_data, uint16_t length)
 {
- // fixme
+    if(p_data[0] == '?'){
+        unsigned char data_arr[20] = {"Hello world!\t-Pong!\n"}; // 20 byte msg
+        ble_nus_string_send(&m_nus, data_arr, 20);
+}
 }
 
 // Init the serial port service

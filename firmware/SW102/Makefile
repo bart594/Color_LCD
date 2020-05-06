@@ -35,7 +35,7 @@ ifeq ($(PLATFORM),windows)
   OPENOCD_PATH := E:/nrf5/Toolchain/OpenOCD/0.10.0-12-20190422-2015/bin/
   OPENOCD_BIN := openocd.exe
   NRFUTIL := $(SDK_ROOT)/external_tools/Windows/nrfutil.exe
-  SREC_PATH := E:/nrf5/Toolchain/srecord-1.63-win32/
+  SREC_PATH := C:/arduino/msys32/opt/srec/
 else
   # LINUX
   OPENOCD_PATH := /usr/local/share/openocd/bin/
@@ -272,6 +272,11 @@ BOOTLOADER_HEX = prebuilt/sw102_bootloader.hex
 # KEYFILE := ../../../SW102_LCD_Bluetooth-bootloader/private.key
 KEYFILE := prebuilt/private.key
 
+# The integer build number for this release, MUST BE INCREMENTED FOR EACH RELEASE SO BOOTLOADER WILL INSTALL
+VERSION_NUM := 15
+
+VERSION_STRING := 0.19.$(VERSION_NUM)
+
 .PHONY: $(TARGETS) default all clean help flash flash_softdevice
 
 # Default target - first one defined
@@ -348,13 +353,14 @@ generate_transitional:
 generate_bootloader:
 	$(NRFUTIL) pkg generate --hw-version 51 --bootloader $(BOOTLOADER_HEX) --bootloader-version 1 --softdevice $(SOFT_DEVICE) --key-file $(KEYFILE) --sd-req 0x87 $(RELEASE_DIRECTORY)/sw102-otabootloader-$(VERSION_STRING).zip
 
+	clean_project: clean
+	rm -rf $(OUTPUT_DIRECTORY)
+	rm -rf $(RELEASE_DIRECTORY)
+
+
+	
 # Start CMSIS_Configuration_Wizard
 SDK_CONFIG_FILE := $(PROJ_DIR)/include/sdk_config.h
 CMSIS_CONFIG_TOOL := $(SDK_ROOT)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar
 sdk_config:
 	java -jar $(CMSIS_CONFIG_TOOL) $(SDK_CONFIG_FILE)
-	
-clean_project: clean
-	rm -rf $(OUTPUT_DIRECTORY)
-	rm -rf $(RELEASE_DIRECTORY)
-	

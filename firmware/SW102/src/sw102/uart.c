@@ -14,6 +14,8 @@
 #include "assert.h"
 #include "app_util_platform.h"
 #include "app_uart.h"
+#include "ble_nus.h"
+
 
 extern uint32_t _app_uart_init(const app_uart_comm_params_t * p_comm_params,
     app_uart_buffers_t *     p_buffers,
@@ -38,9 +40,10 @@ static const app_uart_comm_params_t comm_params =
     .baud_rate    = UART_BAUDRATE_BAUDRATE_Baud19200
 };
 
-uint8_t ui8_rx_buffer[UART_NUMBER_DATA_BYTES_TO_RECEIVE];
-uint8_t ui8_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND];
+uint8_t ui8_rx_buffer[UART_NUMBER_DATA_BYTES_TO_RECEIVE + 1];
+uint8_t ui8_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND + 3];
 volatile uint8_t ui8_received_package_flag = 0;
+ble_nus_t                        m_nus;   
 
 uint8_t* uart_get_tx_buffer(void)
 {
@@ -66,11 +69,12 @@ void uart_evt_callback(app_uart_evt_t * uart_evt)
 {
   uint8_t ui8_byte_received;
   static uint8_t ui8_state_machine = 0;
-  static uint8_t ui8_rx[UART_NUMBER_DATA_BYTES_TO_RECEIVE];
+  static uint8_t ui8_rx[UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3];
   static uint8_t ui8_rx_cnt = 0;
   uint8_t ui8_i;
   uint16_t ui16_crc_rx;
-
+  uint32_t err_code; 
+	  
   switch (uart_evt->evt_type)
   {
     case APP_UART_DATA:
@@ -79,57 +83,59 @@ void uart_evt_callback(app_uart_evt_t * uart_evt)
       switch (ui8_state_machine)
       {
         case 0:
-        if (ui8_byte_received == 0x43) { // see if we get start package byte
+        if (ui8_byte_received == 67) { // see if we get start package byte
           ui8_rx[0] = ui8_byte_received;
+		  ui8_rx_cnt++;
           ui8_state_machine = 1;
         }
         else {
           ui8_state_machine = 0;
+		  ui8_rx_cnt = 0;
         }
-
-        ui8_rx_cnt = 0;
         break;
 
         case 1:
-          ui8_rx[1] = ui8_byte_received;
-          ui8_state_machine = 2;
-        break;
-
-        case 2:
-        ui8_rx[ui8_rx_cnt + 2] = ui8_byte_received;
-        ++ui8_rx_cnt;
+        ui8_rx[ui8_rx_cnt] = ui8_byte_received;
+        ui8_rx_cnt++;
 
         // reset if it is the last byte of the package and index is out of bounds
-        if (ui8_rx_cnt >= ui8_rx[1])
+         if(ui8_rx_cnt >= (UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3))
         {
           ui8_state_machine = 0;
-
-          // just to make easy next calculations
-          ui16_crc_rx = 0xffff;
-          for (ui8_i = 0; ui8_i < ui8_rx[1]; ui8_i++)
-          {
-            crc16(ui8_rx[ui8_i], &ui16_crc_rx);
-          }
+		  ui8_rx_cnt = 0;
+          // validation of the package data
+		  ui16_crc_rx = 0xffff;
+    
+		for (ui8_i = 0; ui8_i <= UART_NUMBER_DATA_BYTES_TO_RECEIVE; ui8_i++)
+		{
+			crc16 (ui8_rx[ui8_i], &ui16_crc_rx);
+		}
 
           // if CRC is correct read the package
-          if (((((uint16_t) ui8_rx[ui8_rx[1] + 1]) << 8) +
-                ((uint16_t) ui8_rx[ui8_rx[1]])) == ui16_crc_rx)
+        if (((((uint16_t) ui8_rx [UART_NUMBER_DATA_BYTES_TO_RECEIVE + 2]) << 8) + ((uint16_t) ui8_rx [UART_NUMBER_DATA_BYTES_TO_RECEIVE + 1])) == ui16_crc_rx)
           {
-            // copy to the other buffer only if we processed already the last package
+			// copy to the other buffer only if we processed already the last package
             if(!ui8_received_package_flag)
             {
               ui8_received_package_flag = 1;
 
               // store the received data to rx_buffer
-              memcpy(ui8_rx_buffer, ui8_rx, ui8_rx[1] + 2);
+            memcpy(ui8_rx_buffer, ui8_rx, UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3);
             }
-          }
+            
+			//err_code = ble_nus_string_send(&m_nus, ui8_rx, UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3);
+			//if (err_code != NRF_ERROR_INVALID_STATE)
+		//	{
+         //   APP_ERROR_CHECK(err_code);
+		//	}
+		  
+		  }
         }
         break;
 
         default:
-          ui8_state_machine = 0;
-          break;
+        ui8_state_machine = 0;
+        break;
       }
     break;
 
@@ -165,7 +171,7 @@ void uart_init(void)
 /**
  * @brief Returns pointer to RX buffer ready for parsing or NULL
  */
-const uint8_t* uart_get_rx_buffer_rdy(void)
+const uint8_t* uart_get_rx_buffer(void)
 {
   if(!usart1_received_package()) {
     return NULL;
@@ -186,8 +192,5 @@ void uart_send_tx_buffer(uint8_t *tx_buffer, uint8_t ui8_len)
   for (uint8_t i = 0; i < ui8_len; i++)
   {
     err_code = app_uart_put(tx_buffer[i]);
-// assume that buffer will never get full, like for instance when we are debugging
-//    if (err_code != 0)
-//      APP_ERROR_CHECK(err_code);
   }
 }

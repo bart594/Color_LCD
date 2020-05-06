@@ -82,8 +82,7 @@ void TIM4_IRQHandler(void)
   {
     /* Clear TIMx TIM_IT_Update pending interrupt bit */
     TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
-
-	  rt_processing();
+	  uart_data_clock();	
   }
 }
 
@@ -97,7 +96,7 @@ void timer4_init(void)
 
   /* Time base configuration */
   TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-  TIM_TimeBaseStructure.TIM_Period = (10000 - 1);
+  TIM_TimeBaseStructure.TIM_Period = (3000 - 1);
   TIM_TimeBaseStructure.TIM_Prescaler = (1280 - 1); // 128MHz clock (PCLK1), 128MHz/12800000 = 10Hz --> 100ms each increment of the counter/timer
   TIM_TimeBaseStructure.TIM_ClockDivision = 0;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -122,7 +121,6 @@ void Display850C_rt_processing_stop(void)
 {
   /* TIM4 counter disable */
   TIM_Cmd (TIM4, DISABLE);
-
   /* TIMx TIM_IT_Update disable */
   TIM_ITConfig (TIM4, TIM_IT_Update, DISABLE);
 }
