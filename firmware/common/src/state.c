@@ -22,7 +22,7 @@
 #include "adc.h"
 #include "timer.h"
 #include <stdlib.h>
-
+#include "ble_services.h"
 
 static uint8_t ui8_m_usart1_received_first_package = 0;
 uint8_t ui8_g_battery_soc;
@@ -327,7 +327,7 @@ void rt_send_tx_package(void) {
   //we are sending 11 bytes but needs to be extra 1  don't know why???
   uart_send_tx_buffer(ui8_usart1_tx_buffer, UART_NUMBER_DATA_BYTES_TO_SEND + 4);
 		
-   // increment message_id for next package
+  // increment message_id for next package
   if(++ui8_message_id > UART_MAX_NUMBER_MESSAGE_ID)
   {
     ui8_message_id = 0;
@@ -606,8 +606,8 @@ void copy_rt_to_ui_vars(void) {
 			rt_vars.ui16_battery_voltage_filtered_x10;
 	ui_vars.ui16_battery_current_filtered_x5 =
 			rt_vars.ui16_battery_current_filtered_x5;
-  ui_vars.ui16_motor_current_filtered_x5 =
-      rt_vars.ui16_motor_current_filtered_x5;
+  //ui_vars.ui16_motor_current_filtered_x5 =
+    //  rt_vars.ui16_motor_current_filtered_x5;
 	ui_vars.ui16_full_battery_power_filtered_x50 =
 			rt_vars.ui16_full_battery_power_filtered_x50;
 	ui_vars.ui16_battery_power = rt_vars.ui16_battery_power_filtered;
@@ -626,7 +626,14 @@ void copy_rt_to_ui_vars(void) {
     
 	if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
 	ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;	
+
+	//ui_vars.ui32_nav_turn_distance = rt_vars.ui32_nav_turn_distance;
+	//ui_vars.ui32_nav_total_distance = rt_vars.ui32_nav_total_distance;
+	//ui_vars.ui32_nav_total_turn_distance = rt_vars.ui32_nav_total_distance;
+	//ui_vars.ui8_nav_info = rt_vars.ui8_nav_info;
+	//ui_vars.ui8_nav_info_extra = rt_vars.ui8_nav_info_extra;
     
+	rt_vars.ui8_walk_assist_feature_enabled = ui_vars.ui8_walk_assist_feature_enabled;
 	rt_vars.ui32_wh_x10_100_percent = ui_vars.ui32_wh_x10_100_percent;
 	rt_vars.ui32_wh_x10_offset = ui_vars.ui32_wh_x10_offset;
 	rt_vars.ui16_battery_pack_resistance_x1000 = ui_vars.ui16_battery_pack_resistance_x1000;
@@ -659,6 +666,7 @@ void copy_rt_to_ui_vars(void) {
 	  rt_vars.ui8_assist_level_torque_assist[i] = ui_vars.ui8_assist_level_torque_assist[i];
 	}	
 	
+	rt_vars.ui16_battery_voltage_reset_wh_counter_x10 = ui_vars.ui16_battery_voltage_reset_wh_counter_x10;
 	rt_vars.ui8_lights = ui_vars.ui8_lights;
 	rt_vars.ui8_walk_assist = ui_vars.ui8_walk_assist;
 	rt_vars.ui8_battery_max_current = ui_vars.ui8_battery_max_current;
@@ -690,6 +698,7 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_torque_sensor_calibration_feature_enabled = ui_vars.ui8_torque_sensor_calibration_feature_enabled;
 	rt_vars.ui8_field_weakening_enabled = ui_vars.ui8_field_weakening_enabled;
 	rt_vars.ui8_field_weakening_current = ui_vars.ui8_field_weakening_current;
+	
 }
 
 /// must be called from main() idle loop
@@ -801,9 +810,12 @@ void uart_data_clock(void) {
     rt_send_tx_package();
   
    //now  we do all calculations that must be done after receiving data  
-	 rt_processing();
-	
+    rt_processing();
+#ifdef SW102
+    ble_uart_send(&rt_vars);
+#endif	
 	}
+
 	//prepare_torque_sensor_calibration_table();    
 	// We expected a packet during this 120ms window but one did not arrive.  This might happen if the motor is still booting and we don't want to declare failure
     // unless something is seriously busted (because we will be raising the fault screen and eventually forcing the bike to shutdown) so be very conservative
@@ -843,7 +855,7 @@ void prepare_torque_sensor_calibration_table(void) {
     for (uint8_t i = 0; i < 6; i++) {
       rt_vars.ui16_torque_sensor_calibration_table[i][0] = ui_vars.ui16_torque_sensor_calibration_table[i][1];
     }
-  
+  }
   // get the delta values of ADC steps per kg
   for (uint8_t i = 1; i < 6; i++) {
     // get the deltas x100
@@ -855,7 +867,7 @@ void prepare_torque_sensor_calibration_table(void) {
   // very first table value need to the calculated here
   rt_vars.ui16_torque_sensor_calibration_table[0][1] = rt_vars.ui16_torque_sensor_calibration_table[1][1]; // the first delta is equal the the second one
   rt_vars.ui16_torque_sensor_calibration_table[0][0] = 0; // the first must be 0 
-  }
+
   rt_processing_start();
 }
 

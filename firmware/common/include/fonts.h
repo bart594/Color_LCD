@@ -24,6 +24,14 @@ extern const UG_FONT MY_FONT_NUM_10X16;
 extern const UG_FONT MY_FONT_NUM_24X40;
 #endif
 
+#ifdef USE_MY_FONT_SPECIAL_NUM_24X40
+extern const UG_FONT MY_FONT_SPECIAL_NUM_24X40;
+#endif
+
+#ifdef USE_MY_FONT_SPECIAL_ASSIST_NUM_24X40
+extern const UG_FONT MY_FONT_SPECIAL_ASSIST_NUM_24X40;
+#endif
+
 #ifdef USE_FONT_45X72
 extern const UG_FONT FONT_45X72;
 #endif

@@ -2,9 +2,25 @@
 
 #include "screen.h"
 
-extern Screen mainScreen1, mainScreen2, bootScreen;
+#define eMTB_MODE_SYMBOL		6
+#define LIGHT_SYMBOL			7
+#define WALK_MODE_SYMBOL		8
+#define	CRUISE_MODE_SYMBOL		9
+
+extern Screen mainScreen1, mainScreen2, mainScreen3, bootScreen;
 extern Screen *screens[];
 extern Field
+  naviStrip_0,
+  naviStrip_1,
+  naviStrip_2,
+  naviStrip_3,
+  naviStrip_4,
+  naviStrip_5, 
+  naviStrip_6,
+  naviStrip_7,
+  naviStrip_8,
+  naviStrip_9,
+  naviStrip_10,
   socField,
   timeField,
   assistLevelField,
@@ -30,6 +46,9 @@ extern Field
   motorTempGraph,
   bootStatus2,
 #ifdef SW102
+  navTurnField,
+  navTurnDistanceField,
+  navDistanceField,
   custom1, custom2,
   custom3, custom4,
   custom5, custom6,

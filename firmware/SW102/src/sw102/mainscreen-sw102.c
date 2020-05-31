@@ -22,6 +22,7 @@
 #include "ugui.h"
 #include "configscreen.h"
 #include "battery_gui.h"
+#include "state.h"
 
 Field batteryField = FIELD_CUSTOM(renderBattery);
 
@@ -66,39 +67,42 @@ static void mainScreenOnEnter() {
 
 #define MAIN_SCREEN_WHEELSPEED_X                  1
 #define MAIN_SCREEN_WHEELSPEED_Y                  19
-#define MAIN_SCREEN_WHEELSPEED_WIDTH              62
+#define MAIN_SCREEN_WHEELSPEED_WIDTH              59
 #define MAIN_SCREEN_WHEELSPEED_HEIGHT             40
 
 #define MAIN_SCREEN_MAXPOWER_X                    1
 #define MAIN_SCREEN_MAXPOWER_Y                    21
-#define MAIN_SCREEN_MAXPOWER_WIDTH                62
+#define MAIN_SCREEN_MAXPOWER_WIDTH                59
 #define MAIN_SCREEN_MAXPOWER_HEIGHT               34
 
 #define MAIN_SCREEN_CUSTOM_1_X                    1
 #define MAIN_SCREEN_CUSTOM_1_Y                    63
 #define MAIN_SCREEN_CUSTOM_1_WIDTH                62
-#define MAIN_SCREEN_CUSTOM_1_HEIGHT               25
+#define MAIN_SCREEN_CUSTOM_1_HEIGHT               22
 
 #define MAIN_SCREEN_CUSTOM_2_X                    1
 #define MAIN_SCREEN_CUSTOM_2_Y                    90
 #define MAIN_SCREEN_CUSTOM_2_WIDTH                62
-#define MAIN_SCREEN_CUSTOM_2_HEIGHT               25
+#define MAIN_SCREEN_CUSTOM_2_HEIGHT               22
+
+#define MAIN_SCREEN_NAVISTRIP_WIDTH				  3                   
+#define MAIN_SCREEN_NAVISTRIP_HEIGHT              4     
 
 Screen mainScreen1 = {
-  .onPress = mainScreenOnPress,
+    .onPress = mainScreenOnPress,
 	.onEnter = mainScreenOnEnter,
 	.onDirtyClean = mainScreenOnDirtyClean,
 	.onPostUpdate = mainScreenonPostUpdate,
 
   .fields = {
     BATTERY_BAR,
-    {
+    { 
       .x = MAIN_SCREEN_WHEELSPEED_X,
       .y = MAIN_SCREEN_WHEELSPEED_Y,
       .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
       .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
       .field = &wheelSpeedIntegerField,
-      .font = &BIG_NUMBERS_TEXT_FONT,
+	  .font = &BIG_NUMBERS_TEXT_FONT,
       .label_align_x = AlignHidden,
       .align_x = AlignCenter,
       .show_units = Hide,
@@ -118,6 +122,117 @@ Screen mainScreen1 = {
       .show_units = Hide
     },
     {
+      .x = MAIN_SCREEN_WHEELSPEED_X,
+      .y = MAIN_SCREEN_WHEELSPEED_Y,
+      .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
+      .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
+      .field = &assistLevelField,
+      .font = &BIG_SPECIAL_CHARS_ASSIST_FONT,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },
+    {
+      .x = MAIN_SCREEN_WHEELSPEED_X,
+      .y = MAIN_SCREEN_WHEELSPEED_Y,
+      .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
+      .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
+      .field = &navTurnField,
+      .font = &BIG_SPECIAL_CHARS_FONT,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },
+    {
+      .x = 60,
+      .y = 19,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = 40,
+      .field = &naviStrip_0,
+    },	
+    {
+      .x = 60,
+      .y = 19,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_1,
+	  .color = ColorInvert,
+    },	
+    {
+      .x = 60,
+      .y = 23,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_2,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 27,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_3,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 31,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_4,
+	  .color = ColorInvert,
+    },
+    {
+      .x = 60,
+      .y = 35,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_5,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 39,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_6,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 43,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_7,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 47,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_8,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 51,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_9,
+	  .color = ColorInvert,	  
+    },
+    {
+      .x = 60,
+      .y = 55,
+      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
+      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
+      .field = &naviStrip_10,
+	  .color = ColorInvert,	  
+    },	
+    {
       .x = MAIN_SCREEN_CUSTOM_1_X,
       .y = MAIN_SCREEN_CUSTOM_1_Y,
       .width = MAIN_SCREEN_CUSTOM_1_WIDTH,
@@ -125,6 +240,7 @@ Screen mainScreen1 = {
       .field = &custom1,
       .font = &MEDIUM_NUMBERS_TEXT_FONT,
       .label_align_x = AlignHidden,
+	  .unit_align_y = AlignCenter,
       .align_x = AlignCenter,
       .border = BorderNone,
       .inset_y = 3,
@@ -183,6 +299,30 @@ Screen mainScreen2 = {
       .border = BorderNone,
       .show_units = Hide
     },
+    {
+      .x = MAIN_SCREEN_WHEELSPEED_X,
+      .y = MAIN_SCREEN_WHEELSPEED_Y,
+      .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
+      .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
+      .field = &assistLevelField,
+      .font = &BIG_SPECIAL_CHARS_ASSIST_FONT,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },
+    {
+      .x = MAIN_SCREEN_WHEELSPEED_X,
+      .y = MAIN_SCREEN_WHEELSPEED_Y,
+      .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
+      .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
+      .field = &navTurnField,
+      .font = &BIG_SPECIAL_CHARS_FONT,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },		
     {
       .x = MAIN_SCREEN_CUSTOM_1_X,
       .y = MAIN_SCREEN_CUSTOM_1_Y,
@@ -249,6 +389,30 @@ Screen mainScreen3 = {
       .border = BorderNone,
       .show_units = Hide
     },
+    {
+      .x = MAIN_SCREEN_WHEELSPEED_X,
+      .y = MAIN_SCREEN_WHEELSPEED_Y,
+      .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
+      .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
+      .field = &assistLevelField,
+      .font = &BIG_SPECIAL_CHARS_ASSIST_FONT,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },
+    {
+      .x = MAIN_SCREEN_WHEELSPEED_X,
+      .y = MAIN_SCREEN_WHEELSPEED_Y,
+      .width = MAIN_SCREEN_WHEELSPEED_WIDTH,
+      .height = MAIN_SCREEN_WHEELSPEED_HEIGHT,
+      .field = &navTurnField,
+      .font = &BIG_SPECIAL_CHARS_FONT,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },	
     {
       .x = MAIN_SCREEN_CUSTOM_1_X,
       .y = MAIN_SCREEN_CUSTOM_1_Y,

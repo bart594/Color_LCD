@@ -39,6 +39,14 @@
 #ifdef USE_APP_CONFIG
 #include "app_config.h"
 #endif
+
+// <q> NRF_BLE_GATT_ENABLED  - nrf_ble_gatt - GATT module
+ 
+#ifndef NRF_BLE_GATT_ENABLED
+#define NRF_BLE_GATT_ENABLED 1
+#endif
+
+
 // <h> nRF_BLE
 
 //==========================================================
@@ -108,14 +116,14 @@
 
 
 #ifndef BLE_BAS_ENABLED
-#define BLE_BAS_ENABLED 1
+#define BLE_BAS_ENABLED 0
 #endif
 
 // <q> BLE_CSCS_ENABLED  - ble_cscs - Cycling Speed and Cadence Service
  
 
 #ifndef BLE_CSCS_ENABLED
-#define BLE_CSCS_ENABLED 1
+#define BLE_CSCS_ENABLED 0
 #endif
 
 // <q> BLE_CTS_C_ENABLED  - ble_cts_c - Current Time Service Client
@@ -129,7 +137,7 @@
  
 
 #ifndef BLE_DIS_ENABLED
-#define BLE_DIS_ENABLED 1
+#define BLE_DIS_ENABLED 0
 #endif
 
 // <q> BLE_GLS_ENABLED  - ble_gls - Glucose Service

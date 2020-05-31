@@ -24,12 +24,21 @@
 #include "configscreen.h"
 #include "state.h"
 #include "timer.h"
+#include "peer_manager.h"
 
 // only used on SW102, to count timeout to override the wheel speed value with assist level value
-static uint16_t m_assist_level_change_timeout = 0;
-
+static uint8_t m_assist_field_change_timeout = 0;
+static uint8_t m_light_change_timeout = 0;
+static uint8_t nav_info_timeout = 0;
+static uint8_t ws_field_needs_redraw_counter = 0;
 uint8_t ui8_m_wheel_speed_integer;
 uint8_t ui8_m_wheel_speed_decimal;
+uint8_t assist_field_value;
+
+uint16_t ui16_m_nav_turn_distance;
+uint16_t ui16_m_nav_total_distance;
+bool ws_field_needs_redraw = false;
+static uint16_t strip_segment_draw_number;
 
 static uint8_t ui8_walk_assist_state = 0;
 
@@ -37,14 +46,16 @@ uint16_t ui16_m_battery_current_filtered_x10;
 uint16_t ui16_m_motor_current_filtered_x10;
 uint16_t ui16_m_battery_power_filtered;
 uint16_t ui16_m_pedal_power_filtered;
-static uint8_t  ui8_m_animation = 0;
+uint8_t  ui8_m_animation = 0;
 uint8_t g_showNextScreenIndex = 0;
 uint8_t g_showNextScreenPreviousIndex = 0;
 uint16_t ui16_g_target_max_motor_power;
 uint8_t ui8_g_motor_max_power_state = 0;
-uint8_t ui8_assist_level_emtb = 0;
-static uint8_t calibration_counter = 0;
+uint8_t ui8_assist_level_emtb;
+static uint8_t ui8_riding_mode_prev;
+uint8_t calibration_counter = 0;
 
+  
 void lcd_main_screen(void);
 void warnings(void);
 void walk_assist_state(void);
@@ -57,16 +68,20 @@ void wheel_speed(void);
 void showNextScreen();
 static bool renderWarning(FieldLayout *layout);
 void DisplayResetToDefaults(void);
+void DisplayResetBluetoothPeers(void);
 void onSetConfigurationBatteryTotalWh(uint32_t v);
 void batteryTotalWh(void);
 void batteryCurrent(void);
 void batteryResistance(void);
-void motorCurrent(void);
+//void motorCurrent(void);
 void batteryPower(void);
 void pedalPower(void);
 void thresholds(void);
 void emtb_assist(void);
 void cadence_sensor_calibration(void);
+void nav_distance(void);
+void assit_level_field(void);
+void nav_strip_segment(void);
 
 /// set to true if this boot was caused because we had a watchdog failure, used to show user the problem in the fault line
 bool wd_failure_detected;
@@ -77,19 +92,41 @@ bool wd_failure_detected;
 //
 // Fields - these might be shared my multiple screens
 //
+Field naviStrip_0 = FIELD_FILL;
+Field naviStrip_1 = FIELD_FILL;
+Field naviStrip_2 = FIELD_FILL;
+Field naviStrip_3 = FIELD_FILL;
+Field naviStrip_4 = FIELD_FILL;
+Field naviStrip_5 = FIELD_FILL;
+Field naviStrip_6 = FIELD_FILL;
+Field naviStrip_7 = FIELD_FILL;
+Field naviStrip_8 = FIELD_FILL;
+Field naviStrip_9 = FIELD_FILL;
+Field naviStrip_10 = FIELD_FILL;
+
+Field *nav_strip_segments[10] = {&naviStrip_1, &naviStrip_2, &naviStrip_3, &naviStrip_4, &naviStrip_5, &naviStrip_6, &naviStrip_7, &naviStrip_8, &naviStrip_9, &naviStrip_10}; 
+
 Field socField = FIELD_DRAWTEXT_RW();
 Field timeField = FIELD_DRAWTEXT_RW();
+#ifndef SW102
 Field assistLevelField = FIELD_READONLY_UINT("assist", &ui8_assist_level_emtb, "", false);
+#endif
 Field wheelSpeedIntegerField = FIELD_READONLY_UINT("speed", &ui8_m_wheel_speed_integer, "kph", false);
 Field wheelSpeedDecimalField = FIELD_READONLY_UINT("", &ui8_m_wheel_speed_decimal, "kph", false);
 Field wheelSpeedField = FIELD_READONLY_UINT("speed", &ui_vars.ui16_wheel_speed_x10, "kph", true, .div_digits = 1);
 
 // Note: this field is special, the string it is pointing to must be in RAM so we can change it later
 Field tripTimeField = FIELD_READONLY_STRING(_S("trip time", "trip time"), (char [MAX_TIMESTR_LEN]){ 0 });
-
-Field tripDistanceField = FIELD_READONLY_UINT(_S("trip distance", "trip dista"), &ui_vars.ui32_trip_x10, "km", false, .div_digits = 1);
+#ifdef SW102
+Field assistLevelField = FIELD_READONLY_UINT("assist", &assist_field_value, "", false);
+Field navTurnField = FIELD_READONLY_UINT("nav turn", &ui_vars.ui8_nav_info, "", false);
+Field navTurnDistanceField = FIELD_READONLY_UINT("turn dist", &ui16_m_nav_turn_distance, "km", false, .div_digits = 2);
+Field navDistanceField = FIELD_READONLY_UINT("nav Tdist", &ui16_m_nav_total_distance, "km", false, .div_digits = 2);
+#endif
+Field tripDistanceField = FIELD_READONLY_UINT(_S("trip distance", "trip dist"), &ui_vars.ui32_trip_x10, "km", false, .div_digits = 1);
 Field odoField = FIELD_READONLY_UINT("odometer", &ui_vars.ui32_odometer_x10, "km", false, .div_digits = 1);
-Field cadenceField = FIELD_READONLY_UINT("cadence", &ui_vars.ui8_pedal_cadence_filtered, "rpm", true, .div_digits = 0);
+Field cadenceField = FIELD_READONLY_UINT("test", &strip_segment_draw_number, "rpm", true, .div_digits = 0);
+//Field cadenceField = FIELD_READONLY_UINT("cadence", &ui_vars.ui8_pedal_cadence_filtered, "rpm", true, .div_digits = 0);
 Field humanPowerField = FIELD_READONLY_UINT(_S("human power", "human powr"), &ui16_m_pedal_power_filtered, "W", true, .div_digits = 0);
 Field batteryPowerField = FIELD_READONLY_UINT(_S("motor power", "motor powr"), &ui16_m_battery_power_filtered, "W", true, .div_digits = 0);
 Field motorMaxPowerField = FIELD_READONLY_UINT(_S("max power", "max power"), &ui16_g_target_max_motor_power, "W", 0, 2500, .div_digits = 0,);
@@ -118,18 +155,22 @@ Field *customizables[] = {
     &odoField, // 2
     &wheelSpeedField, // 3
     &cadenceField, // 4
-		&humanPowerField, // 5
-		&batteryPowerField, // 6
+	&humanPowerField, // 5
+	&batteryPowerField, // 6
     &batteryVoltageField, // 7
     &batteryCurrentField, // 8
-//    &motorCurrentField, // 9
- //   &batterySOCField, // 10
-		&motorTempField, // 11
+#ifdef SW102	
+	&navTurnDistanceField,		// 9
+	&navDistanceField,	// 10
+#endif
+ // &motorCurrentField, // 9
+ // &batterySOCField, // 10
+	&motorTempField, // 11
     &motorErpsField, // 12
-		&pwmDutyField, // 13
-		&motorFOCField, // 14
-		&batteryPowerUsageField, // 15
-		NULL
+	&pwmDutyField, // 13
+	&motorFOCField, // 14
+	&batteryPowerUsageField, // 15
+	NULL
 };
 
 // We currently don't have any graphs in the SW102, so leave them here until then
@@ -265,11 +306,11 @@ static void bootScreenOnPreUpdate() {
    ui8_m_animation++;
    if (ui8_m_animation > 50){ui8_m_animation = 0;}
 
-   Stop showing only after we release on/off button and after motor init
+   //Stop showing only after we release on/off button and after motor init
     if (g_motor_init_state == MOTOR_INIT_READY){ 
     if (buttons_get_onoff_state() == 0) 
-      showNextScreen();
-	 //}
+        showNextScreen();
+	 }
 
     if(g_motor_init_state == MOTOR_INIT_NOT_READY || MOTOR_INIT_SEND_CONFIG) {
     if (ui8_m_animation > 0) fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
@@ -286,7 +327,7 @@ static void bootScreenOnPreUpdate() {
 
 void bootScreenOnExit(void) {
   // SW102: now that we are goind to main screen, start by showing the assist level for 5 seconds
-  m_assist_level_change_timeout = 50;
+  m_assist_field_change_timeout = 50;
 }
 
 Screen bootScreen = {
@@ -375,7 +416,8 @@ bool anyscreen_onpress(buttons_events_t events) {
   // long up to turn on headlights
   if (events & UP_LONG_CLICK) {
     ui_vars.ui8_lights = !ui_vars.ui8_lights;
-    set_lcd_backlight();
+    m_light_change_timeout = 20;
+	set_lcd_backlight();
      //screenShow(&configScreen);
 	return true;
   }
@@ -483,7 +525,7 @@ bool mainScreenOnPress(buttons_events_t events) {
 		mainScreenOnDirtyClean();
       }
 
-      m_assist_level_change_timeout = 20; // 2 seconds
+      m_assist_field_change_timeout = 20; // 2 seconds
       handled = true;
     }
   
@@ -495,7 +537,7 @@ bool mainScreenOnPress(buttons_events_t events) {
 	  ui_vars.ui8_riding_mode = ui_vars.ui8_riding_mode_ui;
 	  mainScreenOnDirtyClean();
 
-      m_assist_level_change_timeout = 20; // 2 seconds
+      m_assist_field_change_timeout = 20; // 2 seconds
       handled = true;
     }
   }
@@ -512,8 +554,13 @@ void set_conversions() {
 void lcd_main_screen(void) {
 	time();
 	walk_assist_state();
+	cadence_sensor_calibration();
 	emtb_assist();
-    cadence_sensor_calibration();
+#ifdef SW102	
+	nav_distance();
+	nav_strip_segment();
+	assit_level_field();
+#endif
 	battery_soc();
 	battery_display();
 	warnings();
@@ -531,15 +578,107 @@ void wheel_speed(void)
 
   ui8_m_wheel_speed_integer = (uint8_t) (ui16_wheel_speed / 10);
   ui8_m_wheel_speed_decimal = (uint8_t) (ui16_wheel_speed % 10);
+  
+  if(ws_field_needs_redraw_counter > 0 && ui16_wheel_speed == 0){
+  ws_field_needs_redraw_counter--;
+  ui8_m_wheel_speed_integer = 8;
+  }
+  
+  if (ui8_m_wheel_speed_integer > 99)
+	  ui8_m_wheel_speed_integer = 99;
+	  	  
+}
 
 #ifdef SW102
-  // if we are inside the timeout, override the wheel speed value so assist level is shown there
-  if (m_assist_level_change_timeout > 0) {
-    m_assist_level_change_timeout--;
-    ui8_m_wheel_speed_integer = ui_vars.ui8_assist_level;
-  }
-#endif
+void assit_level_field(void)
+{
+	if(m_assist_field_change_timeout > 0 && ui_vars.ui8_riding_mode == WALK_ASSIST_MODE){
+	assist_field_value = WALK_MODE_SYMBOL;}
+	else if(m_assist_field_change_timeout > 0 && ui_vars.ui8_riding_mode == eMTB_ASSIST_MODE){
+	assist_field_value = eMTB_MODE_SYMBOL;}
+	else if(m_assist_field_change_timeout > 0 && ui_vars.ui8_riding_mode == CRUISE_MODE){
+	assist_field_value = CRUISE_MODE_SYMBOL;}
+	else if(m_light_change_timeout > 0 && ui_vars.ui8_lights ){
+	assist_field_value = LIGHT_SYMBOL;}
+	else{assist_field_value = ui_vars.ui8_assist_level;}
+	
+    if (ui8_g_motor_max_power_state == 0){
+	
+	if(m_assist_field_change_timeout > 0 || ui_vars.ui8_riding_mode == WALK_ASSIST_MODE) {
+	assistLevelField.rw->visibility = FieldTransitionVisible; 
+    m_assist_field_change_timeout--;
+    m_light_change_timeout = 0;
+	nav_info_timeout = 0;
+	ws_field_needs_redraw = true;
+	}else if(m_light_change_timeout > 0){
+	assistLevelField.rw->visibility = FieldTransitionVisible; 	
+    m_assist_field_change_timeout = 0;
+	m_light_change_timeout--;
+	nav_info_timeout = 0;
+	ws_field_needs_redraw = true;	
+	}else if (nav_info_timeout > 0){
+	navTurnField.rw->visibility = FieldTransitionVisible;
+	nav_info_timeout--;
+	ws_field_needs_redraw = true;
+	}else if(ws_field_needs_redraw){
+	assistLevelField.rw->visibility = FieldTransitionNotVisible;
+	if(ui_vars.ui32_nav_total_turn_distance == 0)
+	navTurnField.rw->visibility = FieldTransitionNotVisible;
+ 	wheelSpeedIntegerField.rw->visibility = FieldTransitionVisible;
+    ws_field_needs_redraw_counter = 10;
+	ws_field_needs_redraw = false;
+	}
+	}
 }
+
+void nav_distance(void)
+{
+	  
+  uint32_t ui32_nav_turn_dist = ui_vars.ui32_nav_turn_distance;
+  uint32_t ui32_nav_t_turn_dist = ui_vars.ui32_nav_total_turn_distance;
+  uint32_t ui32_nav_t_dist = ui_vars.ui32_nav_total_distance;
+  uint16_t ui16_wheel_speed_ms = ui_vars.ui16_wheel_speed_x10 * 10 / 36;
+
+  
+  ui16_m_nav_turn_distance = (uint16_t) (ui32_nav_turn_dist / 10);
+
+  ui16_m_nav_total_distance = (uint16_t) (ui32_nav_t_dist / 10);
+  
+  
+  if((ui32_nav_t_turn_dist > 50) && (ui32_nav_t_turn_dist > ui32_nav_turn_dist)){
+  strip_segment_draw_number = (uint16_t) ((ui32_nav_turn_dist * 10) / (ui32_nav_t_turn_dist));
+  }else{strip_segment_draw_number = 0;}
+	
+  //for simulation
+  if(ui16_wheel_speed_ms == 0 && strip_segment_draw_number == 1 && ui32_nav_turn_dist > 0){
+	nav_info_timeout = 40;
+  }
+  
+  if (ui16_wheel_speed_ms != 0 && ui32_nav_turn_dist > 0){
+  if (ui16_wheel_speed_ms  > ui32_nav_turn_dist)
+      nav_info_timeout = 40;
+  }		
+   
+}
+
+void nav_strip_segment(void)
+{
+	   
+	   naviStrip_0.rw->visibility = FieldVisible;
+	   
+	   for (int i = 0; i < 10; i++){
+	   nav_strip_segments[i]->rw->visibility = FieldNotVisible;
+	   }
+
+	   naviStrip_0.rw->dirty = true;
+	   
+
+	   for (int i= strip_segment_draw_number; i < 10 ; i++){
+	    nav_strip_segments[i]->rw->visibility = FieldTransitionVisible;
+	   }
+}
+
+#endif
 
 void motorMaxPower(void) {
   switch (ui8_g_motor_max_power_state) {
@@ -548,6 +687,8 @@ void motorMaxPower(void) {
       assistLevelField.rw->visibility = FieldTransitionNotVisible;
 #else
       wheelSpeedIntegerField.rw->visibility = FieldTransitionNotVisible;
+	  navTurnField.rw->visibility = FieldTransitionNotVisible;
+	  assistLevelField.rw->visibility = FieldTransitionNotVisible;
 #endif
       ui8_g_motor_max_power_state = 2;
 
@@ -560,8 +701,9 @@ void motorMaxPower(void) {
 #endif
 
     case 2:
-      motorMaxPowerField.rw->visibility = FieldTransitionVisible;
-      mainScreenOnDirtyClean();
+      
+	  motorMaxPowerField.rw->visibility = FieldTransitionVisible;
+	  mainScreenOnDirtyClean();
       ui8_g_motor_max_power_state = 3;
       break;
 
@@ -593,6 +735,7 @@ void screen_clock(void) {
   static int counter_time_ms = 0;
   int time_ms = 0;
 
+  
   // No point to processing less than every 120ms, as the data comming from the motor is only updated every 120ms, not less
   time_ms = get_time_base_counter_1ms();
   if((time_ms - counter_time_ms) >= 120) // not least than evey 120ms
@@ -601,16 +744,25 @@ void screen_clock(void) {
 
     // exchange data from realtime layer to UI layer
     // do this in atomic way, disabling the real time layer (should be no problem as
-    // copy_rt_to_ui_vars() should be fast and take a small piece of the 100ms periodic realtime layer processing
-    rt_processing_stop();
-    copy_rt_to_ui_vars();
+    // copy_rt_to_ui_vars() should be fast and take a small piece of the 120ms periodic realtime layer processing
+	//if we getting config update from mobile app  don't copy vars (SW102)
+#ifdef SW102	
+    if(!ble_config_update){
+	rt_processing_stop();
+	copy_rt_to_ui_vars();
     rt_processing_start();
-
+	}
+#else
+	rt_processing_stop();
+	copy_rt_to_ui_vars();
+    rt_processing_start();
+#endif
     lcd_main_screen();
 #ifndef SW102
     clock_time();
 #endif
     DisplayResetToDefaults();
+	DisplayResetBluetoothPeers();
     batteryTotalWh();
     batteryCurrent();
     batteryResistance();
@@ -863,6 +1015,7 @@ static const char *motorErrors[] = { _S("None", "None"), _S("Motor Blocked", "Mo
 void warnings(void) {
   static uint8_t motor_temp_limit = 0;
   static uint8_t ui8_motorErrorsIndex = 0;
+
   
   if (ui_vars.ui8_optional_ADC_function == TEMPERATURE_CONTROL){motor_temp_limit = 1;}
 
@@ -917,7 +1070,7 @@ void warnings(void) {
 	    setWarning(ColorNormal, "!!!FW!!!");
 		return;
 	}
-
+#ifndef SW102	
 	if(ui_vars.ui8_riding_mode == WALK_ASSIST_MODE) {
 		setWarning(ColorNormal, "WALK");
 		return;
@@ -931,8 +1084,29 @@ void warnings(void) {
 	if(ui_vars.ui8_lights) {
 		setWarning(ColorNormal, "LIGHT");
 		return;
+	}	
+#else
+	if(ui_vars.ui8_nav_info_extra == 1 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "EXIT 1");
+		return;
 	}
-
+	
+	if(ui_vars.ui8_nav_info_extra == 2 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "EXIT 2");
+		return;
+	}	
+	
+	if(ui_vars.ui8_nav_info_extra == 3 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "EXIT 3");
+		return;
+	}
+	
+	if(ui_vars.ui8_nav_info_extra == 4 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "EXIT 4");
+		return;
+	}
+#endif	
+	
 	setWarning(ColorNormal, "");
 }
 
@@ -973,11 +1147,12 @@ void time(void) {
 
 void walk_assist_state(void) {
 	// kevinh - note on the sw102 we show WALK in the box normally used for BRAKE display - the display code is handled there now
-	  
+    
 	if (ui_vars.ui8_walk_assist_feature_enabled) {
 		// if down button is still pressed
-		if (ui8_walk_assist_state && buttons_get_down_state() && ui_vars.ui8_assist_level) {
+		if (ui8_walk_assist_state && buttons_get_down_state() && ui_vars.ui8_assist_level && (ui_vars.ui8_riding_mode != eMTB_ASSIST_MODE)) {
 			ui_vars.ui8_walk_assist = 1;
+			m_assist_field_change_timeout = 20;
 		} else if (buttons_get_down_state() == 0) {
 			ui8_walk_assist_state = 0;
 			ui_vars.ui8_walk_assist = 0;
@@ -986,6 +1161,9 @@ void walk_assist_state(void) {
 		ui8_walk_assist_state = 0;
 		ui_vars.ui8_walk_assist = 0;
 	}
+	
+	if (ui_vars.ui8_riding_mode != WALK_ASSIST_MODE && ui_vars.ui8_riding_mode != CRUISE_MODE){ui8_riding_mode_prev = ui_vars.ui8_riding_mode;}
+	
 	
 	if (ui_vars.ui8_walk_assist == 1){
     if(ui_vars.ui16_wheel_speed_x10 < WALK_ASSIST_THRESHOLD_SPEED_X10)
@@ -997,13 +1175,10 @@ void walk_assist_state(void) {
 	 ui_vars.ui8_riding_mode = CRUISE_MODE;
 	}
 	}
-	else if(ui_vars.ui8_walk_assist == 0)
+	else 
 	{
-	ui_vars.ui8_riding_mode = ui_vars.ui8_riding_mode_ui;
-	} else {
-	ui_vars.ui8_riding_mode = OFF_MODE; 
-	}
-	
+	ui_vars.ui8_riding_mode = ui8_riding_mode_prev;
+	} 
 }
 
 
@@ -1023,15 +1198,14 @@ void cadence_sensor_calibration() {
 }
 
 void emtb_assist() {
-	
-	//if ((ui_vars.ui8_riding_mode != eMTB_ASSIST_MODE)){ui8_riding_mode_emtb_prev = ui_vars.ui8_riding_mode;}
-	
+	// we are enabling/disabling eMTB mode only once  while pressing up/down button 
+	//here we only displaying the highest assist level
      if(ui_vars.ui8_assist_level > ui_vars.ui8_number_of_assist_levels)
-      {
+	 {
 	  ui8_assist_level_emtb = ui_vars.ui8_number_of_assist_levels;
-	  }else {
+	 }else{
 	  ui8_assist_level_emtb = ui_vars.ui8_assist_level;
-	}
+	 }
 }
 
 // Screens in a loop, shown when the user short presses the power button
@@ -1134,6 +1308,18 @@ void DisplayResetToDefaults(void) {
   if (ui8_g_configuration_display_reset_to_defaults) {
     ui8_g_configuration_display_reset_to_defaults = 0;
     eeprom_init_defaults();
+  }
+}
+
+void DisplayResetBluetoothPeers(void) {
+
+  if (ui8_g_configuration_display_reset_bluetooth_peers) {
+    ui8_g_configuration_display_reset_bluetooth_peers = 0;
+    // TODO: fist disable any connection
+    // Warning: Use this (pm_peers_delete) function only when not connected or connectable. If a peer is or becomes connected
+    // or a PM_PEER_DATA_FUNCTIONS function is used during this procedure (until the success or failure event happens),
+    // the behavior is undefined.
+    pm_peers_delete();
   }
 }
 

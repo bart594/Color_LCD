@@ -289,6 +289,7 @@ void eeprom_init_variables(void) {
 	ui_vars->ui8_walk_assist_feature_enabled =
 			m_eeprom_data.ui8_walk_assist_feature_enabled;
 	ui_vars->ui8_riding_mode_ui = m_eeprom_data.ui8_riding_mode_ui;
+	ui_vars->ui8_riding_mode = ui_vars->ui8_riding_mode_ui; //at the start we need to set up riding mode
 	ui_vars->ui8_eMTB_assist_level = m_eeprom_data.ui8_eMTB_assist_level;
 	ui_vars->ui8_cadence_sensor_mode = m_eeprom_data.ui8_cadence_sensor_mode;
 	ui_vars->ui16_cadence_sensor_pulse_high_percentage_x10 = m_eeprom_data.ui16_cadence_sensor_pulse_high_percentage_x10;

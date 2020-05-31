@@ -88,14 +88,12 @@ SRC_FILES += \
   $(SDK_ROOT)/components/drivers_nrf/spi_master/nrf_drv_spi.c \
   $(SDK_ROOT)/components/drivers_nrf/uart/nrf_drv_uart.c \
   $(SDK_ROOT)/components/drivers_nrf/wdt/nrf_drv_wdt.c \
+  $(SDK_ROOT)/components/ble/nrf_ble_gatt/nrf_ble_gatt.c \
   $(SDK_ROOT)/components/ble/common/ble_advdata.c \
   $(SDK_ROOT)/components/ble/ble_advertising/ble_advertising.c \
   $(SDK_ROOT)/components/ble/common/ble_conn_params.c \
   $(SDK_ROOT)/components/ble/common/ble_conn_state.c \
   $(SDK_ROOT)/components/ble/ble_services/ble_nus/ble_nus.c \
-  $(SDK_ROOT)/components/ble/ble_services/ble_bas/ble_bas.c \
-  $(SDK_ROOT)/components/ble/ble_services/ble_dis/ble_dis.c \
-  $(SDK_ROOT)/components/ble/ble_services/ble_cscs/ble_cscs.c \
   $(SDK_ROOT)/components/ble/ble_services/ble_cscs/ble_sc_ctrlpt.c \
   $(SDK_ROOT)/components/ble/common/ble_srv_common.c \
   $(SDK_ROOT)/components/ble/peer_manager/gatt_cache_manager.c \
@@ -177,6 +175,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/ble/ble_racp \
   $(SDK_ROOT)/components/ble/common \
   $(SDK_ROOT)/components/ble/nrf_ble_qwr \
+  $(SDK_ROOT)/components/ble/nrf_ble_gatt \
   $(SDK_ROOT)/components/ble/peer_manager \
   $(SDK_ROOT)/components/libraries/bootloader \
   $(SDK_ROOT)/components/libraries/bootloader/ble_dfu \

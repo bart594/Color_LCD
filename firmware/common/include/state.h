@@ -149,6 +149,12 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_field_weakening_current;
 	battery_energy_h_km_t battery_energy_h_km;
 	
+	uint32_t ui32_nav_turn_distance;
+	uint32_t ui32_nav_total_distance;
+	uint32_t ui32_nav_total_turn_distance;
+	uint8_t ui8_nav_info;
+	uint8_t ui8_nav_info_extra;
+	
 } rt_vars_t;
 
 /* Selector positions for customizable fields
@@ -253,6 +259,12 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_field_weakening_enabled;
 	uint8_t ui8_field_weakening_current;
+	
+	uint32_t ui32_nav_turn_distance;
+	uint32_t ui32_nav_total_distance;
+	uint32_t ui32_nav_total_turn_distance;
+	uint8_t ui8_nav_info;
+	uint8_t ui8_nav_info_extra;
 
 	
 	uint8_t ui8_torque_sensor_calibration_feature_enabled;
@@ -361,6 +373,8 @@ rt_vars_t* get_rt_vars(void);
 extern rt_vars_t rt_vars; // FIXME - this shouldn't be exposed outside of state.c - but currently mid merge
 extern ui_vars_t ui_vars;
 
+extern volatile bool ble_config_update;
+extern volatile bool nav_command_update;
 extern volatile uint8_t ui8_g_motorVariablesStabilized;
 
 typedef struct {

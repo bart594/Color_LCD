@@ -14,7 +14,6 @@
 #include "assert.h"
 #include "app_util_platform.h"
 #include "app_uart.h"
-#include "ble_nus.h"
 
 
 extern uint32_t _app_uart_init(const app_uart_comm_params_t * p_comm_params,
@@ -43,7 +42,6 @@ static const app_uart_comm_params_t comm_params =
 uint8_t ui8_rx_buffer[UART_NUMBER_DATA_BYTES_TO_RECEIVE + 1];
 uint8_t ui8_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND + 3];
 volatile uint8_t ui8_received_package_flag = 0;
-ble_nus_t                        m_nus;   
 
 uint8_t* uart_get_tx_buffer(void)
 {
@@ -122,13 +120,6 @@ void uart_evt_callback(app_uart_evt_t * uart_evt)
               // store the received data to rx_buffer
             memcpy(ui8_rx_buffer, ui8_rx, UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3);
             }
-            
-			//err_code = ble_nus_string_send(&m_nus, ui8_rx, UART_NUMBER_DATA_BYTES_TO_RECEIVE + 3);
-			//if (err_code != NRF_ERROR_INVALID_STATE)
-		//	{
-         //   APP_ERROR_CHECK(err_code);
-		//	}
-		  
 		  }
         }
         break;
