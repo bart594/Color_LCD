@@ -306,8 +306,8 @@ static void bootScreenOnPreUpdate() {
 	
 	if((g_motor_init_state == MOTOR_INIT_NOT_READY || MOTOR_INIT_SEND_CONFIG)){
     fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
-	if(ui8_m_animation > 81) //yeah i know it's weird  piece of code but  after motor init boot logo doesnt't show up
-	ui8_m_show_logo = ui8_m_animation - 80 ; 	
+	if(ui8_m_animation > 82) //yeah i know it's weird  piece of code but  after motor init boot logo doesnt't show up
+	ui8_m_show_logo = ui8_m_animation - 81 ; 	
 	}
 	
     if(g_motor_init_state == MOTOR_INIT_ERROR) {
@@ -591,17 +591,17 @@ void assit_level_field(void)
 	
     if (ui8_g_motor_max_power_state == 0){
 	
-	if(m_assist_field_change_timeout > 0 || ui_vars.ui8_riding_mode == WALK_ASSIST_MODE) {
-	assistLevelField.rw->visibility = FieldTransitionVisible; 
-    m_assist_field_change_timeout--;
-    m_light_change_timeout = 0;
-	nav_info_timeout = 0;
-	ws_field_enable = true;
-	}else if(m_light_change_timeout > 0){
+    if(m_light_change_timeout > 0 || ui_vars.ui8_riding_mode == WALK_ASSIST_MODE){
 	assistLevelField.rw->visibility = FieldTransitionVisible; 	
 	m_light_change_timeout--;
+	m_assist_field_change_timeout = 0;
 	nav_info_timeout = 0;
 	ws_field_enable = true;	
+	}else if(m_assist_field_change_timeout > 0){
+	assistLevelField.rw->visibility = FieldTransitionVisible; 
+	m_assist_field_change_timeout--;
+	nav_info_timeout = 0;
+	ws_field_enable = true;
 	}else if (nav_info_timeout > 0){
 	navTurnField.rw->visibility = FieldTransitionVisible;
 	nav_info_timeout--;
