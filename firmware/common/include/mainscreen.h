@@ -10,17 +10,7 @@
 extern Screen mainScreen1, mainScreen2, mainScreen3, bootScreen;
 extern Screen *screens[];
 extern Field
-  naviStrip_0,
-  naviStrip_1,
-  naviStrip_2,
-  naviStrip_3,
-  naviStrip_4,
-  naviStrip_5, 
-  naviStrip_6,
-  naviStrip_7,
-  naviStrip_8,
-  naviStrip_9,
-  naviStrip_10,
+  logoField,
   socField,
   timeField,
   assistLevelField,
@@ -86,6 +76,7 @@ extern uint8_t g_showNextScreenPreviousIndex;
 extern uint16_t ui16_g_target_max_motor_power;
 
 extern Field batteryField; // These fields are custom for board type
+void PowerStripOnDirtyClean(uint8_t power_strip_segment_draw_number);
 void battery_display(); // 850C and sw102 provide alternative versions due to different implementations
 void set_conversions();
 bool anyscreen_onpress(buttons_events_t events);
@@ -98,6 +89,7 @@ void onSetConfigurationBatteryTotalWh(uint32_t v);
 void onSetConfigurationWheelOdometer(uint32_t v);
 void onSetConfigurationBatterySOCUsedWh(uint32_t v);
 void mainScreenOnDirtyClean(void);
+void PowerStripMainScreenOnDirtyClean(uint8_t power_strip_segment_draw_number);
 void secondMainScreenOnDirtyClean(void);
 void mainScreenonPostUpdate(void);
 bool mainScreenOnPress(buttons_events_t events);

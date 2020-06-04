@@ -64,7 +64,6 @@ static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
 static uint8_t 							ble_command = PACKET_REGULAR;
 volatile bool 							ble_config_update = false;
-volatile bool 					        nav_command_update = false;
 
 static ble_uuid_t                       m_adv_uuids[] = {
 #ifdef BLE_SERIAL

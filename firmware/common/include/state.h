@@ -374,7 +374,6 @@ extern rt_vars_t rt_vars; // FIXME - this shouldn't be exposed outside of state.
 extern ui_vars_t ui_vars;
 
 extern volatile bool ble_config_update;
-extern volatile bool nav_command_update;
 extern volatile uint8_t ui8_g_motorVariablesStabilized;
 
 typedef struct {

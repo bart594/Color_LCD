@@ -514,7 +514,7 @@ void rt_first_time_management(void) {
 
   // wait 5 seconds to help motor variables data stabilize
   if (ui8_g_motorVariablesStabilized == 0)
-    if (++ui32_counter > 50) {
+    if (++ui32_counter > 40) {
       ui8_g_motorVariablesStabilized = 1;
 #ifndef SW102
       extern Field *activeGraphs; // FIXME, move this extern someplace better, placing here for review purposes

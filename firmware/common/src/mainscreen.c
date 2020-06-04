@@ -30,15 +30,16 @@
 static uint8_t m_assist_field_change_timeout = 0;
 static uint8_t m_light_change_timeout = 0;
 static uint8_t nav_info_timeout = 0;
-static uint8_t ws_field_needs_redraw_counter = 0;
+//static uint8_t ws_field_needs_redraw_counter = 0;
 uint8_t ui8_m_wheel_speed_integer;
 uint8_t ui8_m_wheel_speed_decimal;
 uint8_t assist_field_value;
 
 uint16_t ui16_m_nav_turn_distance;
 uint16_t ui16_m_nav_total_distance;
+bool ws_field_enable = false;
 bool ws_field_needs_redraw = false;
-static uint16_t strip_segment_draw_number;
+static uint8_t power_strip_segment_draw_number;
 
 static uint8_t ui8_walk_assist_state = 0;
 
@@ -46,6 +47,7 @@ uint16_t ui16_m_battery_current_filtered_x10;
 uint16_t ui16_m_motor_current_filtered_x10;
 uint16_t ui16_m_battery_power_filtered;
 uint16_t ui16_m_pedal_power_filtered;
+uint8_t ui8_m_show_logo;
 uint8_t  ui8_m_animation = 0;
 uint8_t g_showNextScreenIndex = 0;
 uint8_t g_showNextScreenPreviousIndex = 0;
@@ -81,7 +83,6 @@ void emtb_assist(void);
 void cadence_sensor_calibration(void);
 void nav_distance(void);
 void assit_level_field(void);
-void nav_strip_segment(void);
 
 /// set to true if this boot was caused because we had a watchdog failure, used to show user the problem in the fault line
 bool wd_failure_detected;
@@ -92,19 +93,6 @@ bool wd_failure_detected;
 //
 // Fields - these might be shared my multiple screens
 //
-Field naviStrip_0 = FIELD_FILL;
-Field naviStrip_1 = FIELD_FILL;
-Field naviStrip_2 = FIELD_FILL;
-Field naviStrip_3 = FIELD_FILL;
-Field naviStrip_4 = FIELD_FILL;
-Field naviStrip_5 = FIELD_FILL;
-Field naviStrip_6 = FIELD_FILL;
-Field naviStrip_7 = FIELD_FILL;
-Field naviStrip_8 = FIELD_FILL;
-Field naviStrip_9 = FIELD_FILL;
-Field naviStrip_10 = FIELD_FILL;
-
-Field *nav_strip_segments[10] = {&naviStrip_1, &naviStrip_2, &naviStrip_3, &naviStrip_4, &naviStrip_5, &naviStrip_6, &naviStrip_7, &naviStrip_8, &naviStrip_9, &naviStrip_10}; 
 
 Field socField = FIELD_DRAWTEXT_RW();
 Field timeField = FIELD_DRAWTEXT_RW();
@@ -118,6 +106,7 @@ Field wheelSpeedField = FIELD_READONLY_UINT("speed", &ui_vars.ui16_wheel_speed_x
 // Note: this field is special, the string it is pointing to must be in RAM so we can change it later
 Field tripTimeField = FIELD_READONLY_STRING(_S("trip time", "trip time"), (char [MAX_TIMESTR_LEN]){ 0 });
 #ifdef SW102
+Field LogoField = FIELD_READONLY_UINT("", &ui8_m_show_logo, "", false);
 Field assistLevelField = FIELD_READONLY_UINT("assist", &assist_field_value, "", false);
 Field navTurnField = FIELD_READONLY_UINT("nav turn", &ui_vars.ui8_nav_info, "", false);
 Field navTurnDistanceField = FIELD_READONLY_UINT("turn dist", &ui16_m_nav_turn_distance, "km", false, .div_digits = 2);
@@ -125,7 +114,7 @@ Field navDistanceField = FIELD_READONLY_UINT("nav Tdist", &ui16_m_nav_total_dist
 #endif
 Field tripDistanceField = FIELD_READONLY_UINT(_S("trip distance", "trip dist"), &ui_vars.ui32_trip_x10, "km", false, .div_digits = 1);
 Field odoField = FIELD_READONLY_UINT("odometer", &ui_vars.ui32_odometer_x10, "km", false, .div_digits = 1);
-Field cadenceField = FIELD_READONLY_UINT("test", &strip_segment_draw_number, "rpm", true, .div_digits = 0);
+Field cadenceField = FIELD_READONLY_UINT("test", &power_strip_segment_draw_number, "rpm", true, .div_digits = 0);
 //Field cadenceField = FIELD_READONLY_UINT("cadence", &ui_vars.ui8_pedal_cadence_filtered, "rpm", true, .div_digits = 0);
 Field humanPowerField = FIELD_READONLY_UINT(_S("human power", "human powr"), &ui16_m_pedal_power_filtered, "W", true, .div_digits = 0);
 Field batteryPowerField = FIELD_READONLY_UINT(_S("motor power", "motor powr"), &ui16_m_battery_power_filtered, "W", true, .div_digits = 0);
@@ -303,26 +292,28 @@ Field bootHeading = FIELD_DRAWTEXT_RO(_S("OpenSource EBike", "OS-EBike")),
 static void bootScreenOnPreUpdate() {
 
   //motor_init_state();
-   ui8_m_animation++;
-   if (ui8_m_animation > 50){ui8_m_animation = 0;}
-
-   //Stop showing only after we release on/off button and after motor init
-    if (g_motor_init_state == MOTOR_INIT_READY){ 
-    if (buttons_get_onoff_state() == 0) 
-        showNextScreen();
-	 }
-
-    if(g_motor_init_state == MOTOR_INIT_NOT_READY || MOTOR_INIT_SEND_CONFIG) {
-    if (ui8_m_animation > 0) fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
-	if (ui8_m_animation > 10) fieldPrintf(&bootStatus2, _S("<Waiting>", "Waiting"));
-	if (ui8_m_animation > 20) fieldPrintf(&bootStatus2, _S("< Waiting >", "Waiting"));
-	if (ui8_m_animation > 30) fieldPrintf(&bootStatus2, _S("<  Waiting  >", "Waiting"));
-	if (ui8_m_animation > 40) fieldPrintf(&bootStatus2, _S("<   Waiting   >", "Waiting"));
-    }
+#ifdef SW102
+   if(ui8_m_animation == 0)
+    ui8_m_show_logo = 0;
+#endif
+	ui8_m_animation++;
 	
-  if(g_motor_init_state == MOTOR_INIT_ERROR) {
+	
+   //Stop showing only after we release on/off button and after motor init
+    if (g_motor_init_state == MOTOR_INIT_READY && buttons_get_onoff_state() == 0){ 
+	showNextScreen();
+	}
+	
+	if((g_motor_init_state == MOTOR_INIT_NOT_READY || MOTOR_INIT_SEND_CONFIG)){
+    fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
+	if(ui8_m_animation > 81) //yeah i know it's weird  piece of code but  after motor init boot logo doesnt't show up
+	ui8_m_show_logo = ui8_m_animation - 80 ; 	
+	}
+	
+    if(g_motor_init_state == MOTOR_INIT_ERROR) {
     fieldPrintf(&bootStatus2, _S("Initialization error", "Init err"));
     }
+
 }
 
 void bootScreenOnExit(void) {
@@ -335,24 +326,7 @@ Screen bootScreen = {
   .onExit = bootScreenOnExit,
 
   .fields = {
-#ifdef SW102
-    {
-      .x = 0, .y = YbyEighths(0) + 2, .height = -1,
-      .field = &bootHeading,
-      .font = &REGULAR_TEXT_FONT,
-    },
-    {
-      .x = 0, .y = -24, .height = -1,
-      .field = &bootURL_1,
-      .font = &SMALL_TEXT_FONT,
-    },
-
-    {
-      .x = 0, .y = -6, .height = -1,
-      .field = &bootURL_2,
-      .font = &SMALL_TEXT_FONT,
-    },
-#else
+#ifndef SW102
     {
       .x = 0, .y = YbyEighths(1), .height = -1,
       .field = &bootHeading,
@@ -369,8 +343,6 @@ Screen bootScreen = {
       .field = &bootURL_2,
       .font = &SMALL_TEXT_FONT,
     },
-#endif
-#ifndef SW102
     {
       .x = 0, .y = YbyEighths(4), .height = -1,
       .field = &bootStatus1,
@@ -384,22 +356,38 @@ Screen bootScreen = {
 #endif
 #ifdef SW102
     {
-      .x = 0, .y = -24, .height = -1,
-      .field = &bootVersion,
+      .x = 0, .y = 20,
+      .width = 63,
+      .height = 55,
+      .field = &LogoField,
+	  .font = &FONT_LOGO_32X53,
+      .label_align_x = AlignHidden,
+      .align_x = AlignCenter,
+      .show_units = Hide,
+      .border = BorderNone,
+    },	
+    {
+      .x = 0, .y = 95, .height = 15,
+      .field = &bootStatus2,
       .font = &SMALL_TEXT_FONT,
     },
+    {
+      .x = 0, .y = 115, .height = 15,
+      .field = &bootVersion,
+      .font = &SMALL_TEXT_FONT,
+    },	
 #else
     {
       .x = 0, .y = -8, .height = -1,
       .field = &bootVersion,
       .font = &SMALL_TEXT_FONT,
     },
-#endif
     {
       .x = 0, .y = YbyEighths(7), .height = -1,
       .field = &bootStatus2,
       .font = &SMALL_TEXT_FONT,
     },
+#endif
     {
       .field = NULL
     }
@@ -522,9 +510,8 @@ bool mainScreenOnPress(buttons_events_t events) {
       if (ui_vars.ui8_assist_level > ui_vars.ui8_number_of_assist_levels) {
         ui_vars.ui8_assist_level = ui_vars.ui8_number_of_assist_levels + 1;
 		ui_vars.ui8_riding_mode = eMTB_ASSIST_MODE;
-		mainScreenOnDirtyClean();
       }
-
+      mainScreenOnDirtyClean();
       m_assist_field_change_timeout = 20; // 2 seconds
       handled = true;
     }
@@ -558,7 +545,6 @@ void lcd_main_screen(void) {
 	emtb_assist();
 #ifdef SW102	
 	nav_distance();
-	nav_strip_segment();
 	assit_level_field();
 #endif
 	battery_soc();
@@ -579,10 +565,11 @@ void wheel_speed(void)
   ui8_m_wheel_speed_integer = (uint8_t) (ui16_wheel_speed / 10);
   ui8_m_wheel_speed_decimal = (uint8_t) (ui16_wheel_speed % 10);
   
-  if(ws_field_needs_redraw_counter > 0 && ui16_wheel_speed == 0){
-  ws_field_needs_redraw_counter--;
-  ui8_m_wheel_speed_integer = 8;
-  }
+  // we need to force redraw
+  //if(ws_field_needs_redraw_counter > 0 && ui16_wheel_speed == 0){
+  //ws_field_needs_redraw_counter--;
+  //ui8_m_wheel_speed_integer = 8;
+ // }
   
   if (ui8_m_wheel_speed_integer > 99)
 	  ui8_m_wheel_speed_integer = 99;
@@ -598,7 +585,7 @@ void assit_level_field(void)
 	assist_field_value = eMTB_MODE_SYMBOL;}
 	else if(m_assist_field_change_timeout > 0 && ui_vars.ui8_riding_mode == CRUISE_MODE){
 	assist_field_value = CRUISE_MODE_SYMBOL;}
-	else if(m_light_change_timeout > 0 && ui_vars.ui8_lights ){
+	else if(m_light_change_timeout > 0){
 	assist_field_value = LIGHT_SYMBOL;}
 	else{assist_field_value = ui_vars.ui8_assist_level;}
 	
@@ -609,24 +596,26 @@ void assit_level_field(void)
     m_assist_field_change_timeout--;
     m_light_change_timeout = 0;
 	nav_info_timeout = 0;
-	ws_field_needs_redraw = true;
+	ws_field_enable = true;
 	}else if(m_light_change_timeout > 0){
 	assistLevelField.rw->visibility = FieldTransitionVisible; 	
-    m_assist_field_change_timeout = 0;
 	m_light_change_timeout--;
 	nav_info_timeout = 0;
-	ws_field_needs_redraw = true;	
+	ws_field_enable = true;	
 	}else if (nav_info_timeout > 0){
 	navTurnField.rw->visibility = FieldTransitionVisible;
 	nav_info_timeout--;
+	ws_field_enable = true;
+	}else if(ws_field_enable){
+	assistLevelField.rw->visibility = FieldTransitionNotVisible;
+	navTurnField.rw->visibility = FieldTransitionNotVisible;
+	wheelSpeedIntegerField.rw->visibility = FieldTransitionVisible;
+	//ws_field_needs_redraw_counter = 10;
+	ws_field_enable = false;
 	ws_field_needs_redraw = true;
 	}else if(ws_field_needs_redraw){
-	assistLevelField.rw->visibility = FieldTransitionNotVisible;
-	if(ui_vars.ui32_nav_total_turn_distance == 0)
-	navTurnField.rw->visibility = FieldTransitionNotVisible;
- 	wheelSpeedIntegerField.rw->visibility = FieldTransitionVisible;
-    ws_field_needs_redraw_counter = 10;
-	ws_field_needs_redraw = false;
+	wheelSpeedIntegerField.rw->dirty = true;
+	!ws_field_needs_redraw;
 	}
 	}
 }
@@ -646,38 +635,28 @@ void nav_distance(void)
   
   
   if((ui32_nav_t_turn_dist > 50) && (ui32_nav_t_turn_dist > ui32_nav_turn_dist)){
-  strip_segment_draw_number = (uint16_t) ((ui32_nav_turn_dist * 10) / (ui32_nav_t_turn_dist));
-  }else{strip_segment_draw_number = 0;}
-	
+  uint16_t temp = (uint16_t) ((ui32_nav_turn_dist * 100) / (ui32_nav_t_turn_dist));
+  power_strip_segment_draw_number = temp * 60 / 100;
+  }else{
+  power_strip_segment_draw_number = 0;}
+	   
+  //if no navigation show motor power
+  if(ui_vars.ui32_nav_total_distance == 0)
+  power_strip_segment_draw_number = (ui16_m_battery_power_filtered * 100) / ui16_g_target_max_motor_power;
+
+  PowerStripOnDirtyClean(power_strip_segment_draw_number);
+  
   //for simulation
-  if(ui16_wheel_speed_ms == 0 && strip_segment_draw_number == 1 && ui32_nav_turn_dist > 0){
-	nav_info_timeout = 40;
+  if(ui16_wheel_speed_ms == 0 && power_strip_segment_draw_number <= 10 && ui32_nav_turn_dist > 10){
+	nav_info_timeout = 20;
   }
   
   if (ui16_wheel_speed_ms != 0 && ui32_nav_turn_dist > 0){
   if (ui16_wheel_speed_ms  > ui32_nav_turn_dist)
       nav_info_timeout = 40;
-  }		
+  }
    
 }
-
-void nav_strip_segment(void)
-{
-	   
-	   naviStrip_0.rw->visibility = FieldVisible;
-	   
-	   for (int i = 0; i < 10; i++){
-	   nav_strip_segments[i]->rw->visibility = FieldNotVisible;
-	   }
-
-	   naviStrip_0.rw->dirty = true;
-	   
-
-	   for (int i= strip_segment_draw_number; i < 10 ; i++){
-	    nav_strip_segments[i]->rw->visibility = FieldTransitionVisible;
-	   }
-}
-
 #endif
 
 void motorMaxPower(void) {
@@ -716,7 +695,9 @@ void motorMaxPower(void) {
 #ifndef SW102
       assistLevelField.rw->visibility = FieldTransitionVisible;
 #else
-      wheelSpeedIntegerField.rw->visibility = FieldTransitionVisible;
+      assistLevelField.rw->visibility = FieldTransitionNotVisible;
+	  ws_field_enable = true;
+	  //wheelSpeedIntegerField.rw->visibility = FieldTransitionVisible;
 #endif
       mainScreenOnDirtyClean();
       ui8_g_motor_max_power_state = 0;
@@ -1105,6 +1086,16 @@ void warnings(void) {
 		setWarning(ColorNormal, "EXIT 4");
 		return;
 	}
+	
+	if(ui_vars.ui8_nav_info_extra == 5 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "KEEP LEFT");
+		return;
+	}
+	
+	if(ui_vars.ui8_nav_info_extra == 6 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "KEEP RIGHT");
+		return;
+	}	
 #endif	
 	
 	setWarning(ColorNormal, "");

@@ -25,7 +25,8 @@
 #include "state.h"
 
 Field batteryField = FIELD_CUSTOM(renderBattery);
-
+uint8_t old_power_strip_segment = 0;
+  
 static void mainScreenOnEnter() {
 	// Set the font preference for this screen
 	editable_label_font = &SMALL_TEXT_FONT;
@@ -65,28 +66,26 @@ static void mainScreenOnEnter() {
 // Screens
 //
 
-#define MAIN_SCREEN_WHEELSPEED_X                  1
-#define MAIN_SCREEN_WHEELSPEED_Y                  19
-#define MAIN_SCREEN_WHEELSPEED_WIDTH              59
+#define MAIN_SCREEN_WHEELSPEED_X                  8
+#define MAIN_SCREEN_WHEELSPEED_Y                  17
+#define MAIN_SCREEN_WHEELSPEED_WIDTH              50
 #define MAIN_SCREEN_WHEELSPEED_HEIGHT             40
 
-#define MAIN_SCREEN_MAXPOWER_X                    1
+#define MAIN_SCREEN_MAXPOWER_X                    2
 #define MAIN_SCREEN_MAXPOWER_Y                    21
-#define MAIN_SCREEN_MAXPOWER_WIDTH                59
+#define MAIN_SCREEN_MAXPOWER_WIDTH                61
 #define MAIN_SCREEN_MAXPOWER_HEIGHT               34
 
 #define MAIN_SCREEN_CUSTOM_1_X                    1
-#define MAIN_SCREEN_CUSTOM_1_Y                    63
+#define MAIN_SCREEN_CUSTOM_1_Y                    66
 #define MAIN_SCREEN_CUSTOM_1_WIDTH                62
 #define MAIN_SCREEN_CUSTOM_1_HEIGHT               22
 
 #define MAIN_SCREEN_CUSTOM_2_X                    1
-#define MAIN_SCREEN_CUSTOM_2_Y                    90
+#define MAIN_SCREEN_CUSTOM_2_Y                    91
 #define MAIN_SCREEN_CUSTOM_2_WIDTH                62
 #define MAIN_SCREEN_CUSTOM_2_HEIGHT               22
 
-#define MAIN_SCREEN_NAVISTRIP_WIDTH				  3                   
-#define MAIN_SCREEN_NAVISTRIP_HEIGHT              4     
 
 Screen mainScreen1 = {
     .onPress = mainScreenOnPress,
@@ -145,93 +144,6 @@ Screen mainScreen1 = {
       .show_units = Hide,
       .border = BorderNone,
     },
-    {
-      .x = 60,
-      .y = 19,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = 40,
-      .field = &naviStrip_0,
-    },	
-    {
-      .x = 60,
-      .y = 19,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_1,
-	  .color = ColorInvert,
-    },	
-    {
-      .x = 60,
-      .y = 23,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_2,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 27,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_3,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 31,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_4,
-	  .color = ColorInvert,
-    },
-    {
-      .x = 60,
-      .y = 35,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_5,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 39,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_6,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 43,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_7,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 47,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_8,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 51,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_9,
-	  .color = ColorInvert,	  
-    },
-    {
-      .x = 60,
-      .y = 55,
-      .width = MAIN_SCREEN_NAVISTRIP_WIDTH,
-      .height = MAIN_SCREEN_NAVISTRIP_HEIGHT,
-      .field = &naviStrip_10,
-	  .color = ColorInvert,	  
-    },	
     {
       .x = MAIN_SCREEN_CUSTOM_1_X,
       .y = MAIN_SCREEN_CUSTOM_1_Y,
@@ -459,13 +371,7 @@ void battery_display() {
 void mainScreenOnDirtyClean(void) {
   batteryClearSymbol();
   batteryField.rw->dirty = true;
-
-  UG_DrawLine(0, 62, 63, 62, C_WHITE);
-  UG_DrawLine(0, 89, 63, 89, C_WHITE);
-  UG_DrawLine(0, 115, 63, 115, C_WHITE);
-
-  UG_DrawLine(0, 63, 0, 114, C_WHITE);
-  UG_DrawLine(63, 63, 63, 114, C_WHITE);
+  
 
   // find if the next lines should be draw or not (white color to draw them)
   UG_COLOR street_mode_color = C_BLACK;
@@ -474,13 +380,33 @@ void mainScreenOnDirtyClean(void) {
     street_mode_color = C_WHITE;
   }
 
-  UG_DrawLine(0, 0, 63, 0, street_mode_color);
-  UG_DrawLine(0, 0, 0, 61, street_mode_color);
-  UG_DrawLine(63, 0, 63, 61, street_mode_color);
+  UG_DrawFrame(0, 0, 63, 59, street_mode_color);
+  
+  UG_DrawFrame(0, 59, 63, 115, C_WHITE);
+  UG_DrawLine(0, 65, 63, 65, C_WHITE);
+  UG_DrawLine(0, 90, 63, 90, C_WHITE);
+  
 }
 
 void secondMainScreenOnDirtyClean(void) {
   batteryClearSymbol();
+}
+
+void PowerStripOnDirtyClean(uint8_t power_strip_segment_draw_number) {
+  
+  int shift_x = 2;
+  //uint8_t old_power_strip_segment;
+  
+  if (power_strip_segment_draw_number > 0){
+  if(old_power_strip_segment > power_strip_segment_draw_number){
+  UG_FillFrame(power_strip_segment_draw_number + 3, 61, old_power_strip_segment + shift_x, 63, C_BLACK);
+  }else{UG_FillFrame(2, 61, power_strip_segment_draw_number + shift_x, 63, C_WHITE);}
+  }
+  else{UG_FillFrame(2, 61, 61, 63, C_BLACK);};
+
+  old_power_strip_segment = power_strip_segment_draw_number;
+  
+  
 }
 
 void mainScreenonPostUpdate(void) {

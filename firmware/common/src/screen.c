@@ -2443,16 +2443,6 @@ void screen_init(void) {
   assistLevelField.rw->visibility = FieldVisible;
 #else
   wheelSpeedIntegerField.rw->visibility = FieldVisible;
-  naviStrip_0.rw->visibility = FieldNotVisible;  
-  naviStrip_1.rw->visibility = FieldNotVisible;
-  naviStrip_2.rw->visibility = FieldNotVisible;
-  naviStrip_3.rw->visibility = FieldNotVisible;
-  naviStrip_4.rw->visibility = FieldNotVisible;
-  naviStrip_5.rw->visibility = FieldNotVisible;
-  naviStrip_6.rw->visibility = FieldNotVisible;
-  naviStrip_7.rw->visibility = FieldNotVisible;
-  naviStrip_8.rw->visibility = FieldNotVisible;
-  naviStrip_9.rw->visibility = FieldNotVisible;
   navTurnField.rw->visibility = FieldNotVisible;
   assistLevelField.rw->visibility = FieldNotVisible;
 #endif
