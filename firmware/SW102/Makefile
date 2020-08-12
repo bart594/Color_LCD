@@ -274,7 +274,7 @@ KEYFILE := prebuilt/private.key
 # The integer build number for this release, MUST BE INCREMENTED FOR EACH RELEASE SO BOOTLOADER WILL INSTALL
 VERSION_NUM := 15
 
-VERSION_STRING := 0.19.$(VERSION_NUM)
+VERSION_STRING := 0.20.$(VERSION_NUM)
 
 .PHONY: $(TARGETS) default all clean help flash flash_softdevice
 

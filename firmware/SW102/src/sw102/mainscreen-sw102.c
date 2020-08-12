@@ -380,8 +380,10 @@ void mainScreenOnDirtyClean(void) {
     street_mode_color = C_WHITE;
   }
 
-  UG_DrawFrame(0, 0, 63, 59, street_mode_color);
-  
+  //UG_DrawFrame(0, 0, 63, 59, street_mode_color);
+  UG_DrawLine(0, 1, 0, 59, street_mode_color);
+  UG_DrawLine(63, 1, 63, 59, street_mode_color);
+  UG_DrawLine(0, 0, 63, 0, street_mode_color);
   UG_DrawFrame(0, 59, 63, 115, C_WHITE);
   UG_DrawLine(0, 65, 63, 65, C_WHITE);
   UG_DrawLine(0, 90, 63, 90, C_WHITE);
