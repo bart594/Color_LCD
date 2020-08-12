@@ -17,22 +17,14 @@
 // riding modes
 #define OFF_MODE                                  0
 #define POWER_ASSIST_MODE                         1
-#define TORQUE_ASSIST_MODE                        2
-#define MIXMODE_ASSIST_MODE                       3
-#define eMTB_ASSIST_MODE                          4
-#define WALK_ASSIST_MODE                          5
-#define CRUISE_MODE                               6
-#define CADENCE_SENSOR_CALIBRATION_MODE           7
+#define eMTB_ASSIST_MODE                          2
+#define WALK_ASSIST_MODE                          3
+#define CRUISE_MODE                               4
 
 // optional ADC function
 #define NOT_IN_USE                                0
 #define TEMPERATURE_CONTROL                       1
 #define THROTTLE_CONTROL                          2 
-
-// cadence sensor
-#define STANDARD_MODE                             0
-#define ADVANCED_MODE                             1
-#define CALIBRATION_MODE                          2
 
 // walk assist
 #define WALK_ASSIST_THRESHOLD_SPEED_X10           80  // 80 -> 8.0 kph, this is the maximum speed limit from which walk assist can be activated

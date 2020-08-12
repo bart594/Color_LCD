@@ -13,29 +13,20 @@
 #define ERROR_THROTTLE_APPLIED_DURING_POWER_ON    4
 #define ERROR_NO_SPEED_SENSOR_DETECTED            5
 #define ERROR_LOW_CONTROLLER_VOLTAGE              6   // controller works with no less than 15 V so give error code if voltage is too low
-#define ERROR_CADENCE_SENSOR_CALIBRATION          7
-#define ERROR_UART_LOST_COMMUNICATION             8
+#define ERROR_UART_LOST_COMMUNICATION             7
 #define ERROR_MAX                                 ERROR_LOW_CONTROLLER_VOLTAGE
 
 // riding modes
 #define OFF_MODE                                  0
 #define POWER_ASSIST_MODE                         1
-#define TORQUE_ASSIST_MODE                        2
-#define CADENCE_ASSIST_MODE                       3
-#define eMTB_ASSIST_MODE                          4
-#define WALK_ASSIST_MODE                          5
-#define CRUISE_MODE                               6
-#define CADENCE_SENSOR_CALIBRATION_MODE           7
+#define eMTB_ASSIST_MODE                          2
+#define WALK_ASSIST_MODE                          3
+#define CRUISE_MODE                               4
 
 // optional ADC function
 #define NOT_IN_USE                                0
 #define TEMPERATURE_CONTROL                       1
 #define THROTTLE_CONTROL                          2 
-
-// cadence sensor
-#define STANDARD_MODE                             0
-#define ADVANCED_MODE                             1
-#define CALIBRATION_MODE                          2
 
 // uart packet types
 #define UART_PACKET_REGULAR          			  1
@@ -59,7 +50,7 @@ typedef struct battery_energy_h_km_struct {
 typedef struct rt_vars_struct {
 	uint16_t ui16_adc_battery_voltage;
 	uint8_t ui8_battery_current_x5;
-  uint16_t ui16_battery_power_loss;
+    uint16_t ui16_battery_power_loss;
 	uint8_t ui8_motor_current_x5;
 	uint8_t ui8_adc_throttle;
 	uint8_t ui8_throttle;
@@ -108,12 +99,11 @@ typedef struct rt_vars_struct {
 	uint16_t ui16_battery_pack_resistance_x1000;
 	uint8_t ui8_motor_type;
 	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
-	uint16_t ui16_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t	 ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
-	uint8_t ui8_assist_level_cadence_assist[ASSIST_LEVEL_NUMBER];	
 	uint8_t ui8_walk_assist_feature_enabled;
 	uint8_t ui8_walk_assist_level_factor[ASSIST_LEVEL_NUMBER];
-	uint8_t ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];	
+	uint8_t ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
+	uint8_t ui8_motor_acceleration_level[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_motor_temperature_min_value_to_limit;
 	uint8_t ui8_motor_temperature_max_value_to_limit;
 	uint8_t ui8_lcd_backlight_on_brightness;
@@ -121,8 +111,8 @@ typedef struct rt_vars_struct {
 	uint32_t ui32_odometer_x10;
 	uint32_t ui32_trip_x10;
 	uint8_t ui8_riding_mode;
-	uint8_t ui8_cadence_sensor_mode;
-	uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
+	//uint8_t ui8_cadence_sensor_mode;
+	//uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
 	uint8_t ui8_optional_ADC_function;
 	uint8_t ui8_target_battery_max_power_div25;	
 	uint8_t ui8_motor_acceleration;
@@ -130,14 +120,15 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_cruise_function_target_speed_kph;
 	uint8_t	ui8_temperature_current_limiting_value;
 	uint8_t ui8_eMTB_assist_level;
-	uint8_t ui8_torque_multiply_factor;
-    uint8_t ui8_cadence_RPM_switch;
+	uint8_t ui8_torque_boost_factor;
+    uint8_t ui8_cadence_RPM_limit;
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_lights;
 	uint8_t ui8_braking;
 	uint8_t ui8_walk_assist;
     uint8_t ui8_torque_sensor_calibration_feature_enabled;
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
+	uint16_t ui16_torque_sensor_calibration_ble_table[6][2];
 	uint8_t ui8_street_mode_enabled;
 	uint8_t ui8_street_mode_feature_enabled;
 	uint8_t ui8_street_mode_enabled_on_startup;
@@ -224,12 +215,11 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_battery_pack_resistance_estimated_x1000;
 	uint8_t ui8_motor_type;
 	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
-	uint16_t ui16_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t	 ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
-	uint8_t ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];
-	uint8_t ui8_assist_level_cadence_assist[ASSIST_LEVEL_NUMBER];	
 	uint8_t ui8_walk_assist_feature_enabled;
 	uint8_t ui8_walk_assist_level_factor[ASSIST_LEVEL_NUMBER];
+	uint8_t ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
+	uint8_t ui8_motor_acceleration_level[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_motor_temperature_min_value_to_limit;
 	uint8_t ui8_motor_temperature_max_value_to_limit;
 	uint8_t ui8_lcd_power_off_time_minutes;
@@ -246,16 +236,16 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_riding_mode;
 	uint8_t ui8_riding_mode_ui;
 	//uint8_t ui8_riding_mode_embt;
-	uint8_t ui8_cadence_sensor_mode;
-	uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
+	//uint8_t ui8_cadence_sensor_mode;
+	//uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
 	uint8_t ui8_optional_ADC_function;
 	uint8_t ui8_target_battery_max_power_div25;
 	uint8_t ui8_motor_acceleration;
 	uint8_t ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	uint8_t ui8_cruise_function_target_speed_kph;
 	uint8_t ui8_eMTB_assist_level;
-	uint8_t ui8_torque_multiply_factor;
-	uint8_t ui8_cadence_RPM_switch;
+	uint8_t ui8_torque_boost_factor;
+	uint8_t ui8_cadence_RPM_limit;
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_field_weakening_enabled;
 	uint8_t ui8_field_weakening_current;

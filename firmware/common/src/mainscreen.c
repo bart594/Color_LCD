@@ -80,7 +80,6 @@ void batteryPower(void);
 void pedalPower(void);
 void thresholds(void);
 void emtb_assist(void);
-void cadence_sensor_calibration(void);
 void nav_distance(void);
 void assit_level_field(void);
 
@@ -114,8 +113,8 @@ Field navDistanceField = FIELD_READONLY_UINT("nav Tdist", &ui16_m_nav_total_dist
 #endif
 Field tripDistanceField = FIELD_READONLY_UINT(_S("trip distance", "trip dist"), &ui_vars.ui32_trip_x10, "km", false, .div_digits = 1);
 Field odoField = FIELD_READONLY_UINT("odometer", &ui_vars.ui32_odometer_x10, "km", false, .div_digits = 1);
-Field cadenceField = FIELD_READONLY_UINT("test", &power_strip_segment_draw_number, "rpm", true, .div_digits = 0);
-//Field cadenceField = FIELD_READONLY_UINT("cadence", &ui_vars.ui8_pedal_cadence_filtered, "rpm", true, .div_digits = 0);
+//Field cadenceField = FIELD_READONLY_UINT("test", &power_strip_segment_draw_number, "rpm", true, .div_digits = 0);
+Field cadenceField = FIELD_READONLY_UINT("cadence", &ui_vars.ui8_pedal_cadence_filtered, "rpm", true, .div_digits = 0);
 Field humanPowerField = FIELD_READONLY_UINT(_S("human power", "human powr"), &ui16_m_pedal_power_filtered, "W", true, .div_digits = 0);
 Field batteryPowerField = FIELD_READONLY_UINT(_S("motor power", "motor powr"), &ui16_m_battery_power_filtered, "W", true, .div_digits = 0);
 Field motorMaxPowerField = FIELD_READONLY_UINT(_S("max power", "max power"), &ui16_g_target_max_motor_power, "W", 0, 2500, .div_digits = 0,);
@@ -306,8 +305,8 @@ static void bootScreenOnPreUpdate() {
 	
 	if((g_motor_init_state == MOTOR_INIT_NOT_READY || MOTOR_INIT_SEND_CONFIG)){
     fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
-	if(ui8_m_animation > 82) //yeah i know it's weird  piece of code but  after motor init boot logo doesnt't show up
-	ui8_m_show_logo = ui8_m_animation - 81 ; 	
+	if(ui8_m_animation > 47) //yeah i know it's weird  piece of code but after motor init boot logo doesnt't show up
+	ui8_m_show_logo = ui8_m_animation - 46 ; 	
 	}
 	
     if(g_motor_init_state == MOTOR_INIT_ERROR) {
@@ -317,8 +316,8 @@ static void bootScreenOnPreUpdate() {
 }
 
 void bootScreenOnExit(void) {
-  // SW102: now that we are goind to main screen, start by showing the assist level for 5 seconds
-  m_assist_field_change_timeout = 50;
+  // SW102: now that we are goind to main screen, start by showing the assist level for 4 seconds
+  m_assist_field_change_timeout = 40;
 }
 
 Screen bootScreen = {
@@ -520,10 +519,11 @@ bool mainScreenOnPress(buttons_events_t events) {
       if (ui_vars.ui8_assist_level > 0)
         ui_vars.ui8_assist_level--;
 
-	  if (ui_vars.ui8_assist_level == ui_vars.ui8_number_of_assist_levels )
+	  if (ui_vars.ui8_assist_level == ui_vars.ui8_number_of_assist_levels ){
 	  ui_vars.ui8_riding_mode = ui_vars.ui8_riding_mode_ui;
 	  mainScreenOnDirtyClean();
-
+      }
+	  
       m_assist_field_change_timeout = 20; // 2 seconds
       handled = true;
     }
@@ -541,7 +541,6 @@ void set_conversions() {
 void lcd_main_screen(void) {
 	time();
 	walk_assist_state();
-	cadence_sensor_calibration();
 	emtb_assist();
 #ifdef SW102	
 	nav_distance();
@@ -591,13 +590,13 @@ void assit_level_field(void)
 	
     if (ui8_g_motor_max_power_state == 0){
 	
-    if(m_light_change_timeout > 0 || ui_vars.ui8_riding_mode == WALK_ASSIST_MODE){
+    if(m_light_change_timeout > 0){
 	assistLevelField.rw->visibility = FieldTransitionVisible; 	
 	m_light_change_timeout--;
 	m_assist_field_change_timeout = 0;
 	nav_info_timeout = 0;
 	ws_field_enable = true;	
-	}else if(m_assist_field_change_timeout > 0){
+	}else if(m_assist_field_change_timeout > 0 || ui_vars.ui8_riding_mode == WALK_ASSIST_MODE){
 	assistLevelField.rw->visibility = FieldTransitionVisible; 
 	m_assist_field_change_timeout--;
 	nav_info_timeout = 0;
@@ -626,8 +625,6 @@ void nav_distance(void)
   uint32_t ui32_nav_turn_dist = ui_vars.ui32_nav_turn_distance;
   uint32_t ui32_nav_t_turn_dist = ui_vars.ui32_nav_total_turn_distance;
   uint32_t ui32_nav_t_dist = ui_vars.ui32_nav_total_distance;
-  uint16_t ui16_wheel_speed_ms = ui_vars.ui16_wheel_speed_x10 * 10 / 36;
-
   
   ui16_m_nav_turn_distance = (uint16_t) (ui32_nav_turn_dist / 10);
 
@@ -646,16 +643,11 @@ void nav_distance(void)
 
   PowerStripOnDirtyClean(power_strip_segment_draw_number);
   
-  //for simulation
-  if(ui16_wheel_speed_ms == 0 && power_strip_segment_draw_number <= 10 && ui32_nav_turn_dist > 10){
-	nav_info_timeout = 20;
+
+  if(ui32_nav_turn_dist > 0 && ui32_nav_turn_dist < 50){
+	nav_info_timeout = 10;
   }
-  
-  if (ui16_wheel_speed_ms != 0 && ui32_nav_turn_dist > 0){
-  if (ui16_wheel_speed_ms  > ui32_nav_turn_dist)
-      nav_info_timeout = 40;
-  }
-   
+ 
 }
 #endif
 
@@ -1172,22 +1164,6 @@ void walk_assist_state(void) {
 	} 
 }
 
-
-void cadence_sensor_calibration() {
- 
- if(ui_vars.ui8_cadence_sensor_calib_enabled){
-    if (calibration_counter++ < 150){
-	 ui_vars.ui8_cadence_sensor_mode = CALIBRATION_MODE;
-     ui_vars.ui8_riding_mode = CADENCE_SENSOR_CALIBRATION_MODE;
-	 }else{
-	 ui_vars.ui8_cadence_sensor_calib_enabled = 0;
-	 ui_vars.ui8_riding_mode = ui_vars.ui8_riding_mode_ui;
-	 ui_vars.ui8_cadence_sensor_mode = ADVANCED_MODE;
-	 calibration_counter = 0;
-	}
-  }
-}
-
 void emtb_assist() {
 	// we are enabling/disabling eMTB mode only once  while pressing up/down button 
 	//here we only displaying the highest assist level
@@ -1338,7 +1314,7 @@ void batteryResistance(void) {
   switch (state) {
     case WAIT_MOTOR_STOP:
       // wait for motor stop to measure battery initial voltage
-      if (ui_vars.ui16_motor_current_filtered_x5 == 0) {
+      if (ui_vars.ui16_battery_current_filtered_x5 == 0) {
         ui16_batt_voltage_init_x10 = ui_vars.ui16_battery_voltage_filtered_x10;
         ui8_counter = 0;
         state = STARTUP;

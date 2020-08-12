@@ -90,32 +90,6 @@ void rt_send_tx_package(void) {
           
         break;
 
-        case TORQUE_ASSIST_MODE:
-        
-          if (rt_vars.ui8_assist_level > 0)
-          {
-            ui8_usart1_tx_buffer[4] = rt_vars.ui8_assist_level_torque_assist[((rt_vars.ui8_assist_level) - 1)];
-          }
-          else
-          {
-            ui8_usart1_tx_buffer[4] = 0;
-          }
-          
-        break;
-        
-        case CADENCE_ASSIST_MODE:
-        
-          if (rt_vars.ui8_assist_level > 0)
-          {
-            ui8_usart1_tx_buffer[4] = rt_vars.ui8_assist_level_cadence_assist[((rt_vars.ui8_assist_level) - 1)];
-          }
-          else
-          {
-            ui8_usart1_tx_buffer[4] = 0;
-          }
-          
-        break;
-        
         case eMTB_ASSIST_MODE:
         
           ui8_usart1_tx_buffer[4] = rt_vars.ui8_eMTB_assist_level;
@@ -203,9 +177,9 @@ void rt_send_tx_package(void) {
     break;
 
 	case 3:
-	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_torque_multiply_factor;
+	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_torque_boost_factor;
 
-	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_cadence_RPM_switch;
+	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_cadence_RPM_limit;
 
       ui8_usart1_tx_buffer[8] = rt_vars.ui8_field_weakening_current;
 
@@ -217,7 +191,10 @@ void rt_send_tx_package(void) {
 	  // start without pedal rotation
 	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_motor_assistance_startup_without_pedal_rotation;
       // motor acceleration
+	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){
       ui8_usart1_tx_buffer[8] = rt_vars.ui8_motor_acceleration;
+	  }
+	  else{ui8_usart1_tx_buffer[8] = rt_vars.ui8_motor_acceleration_level[((rt_vars.ui8_assist_level) - 1)];}
 
     break;
 
@@ -234,20 +211,23 @@ void rt_send_tx_package(void) {
           }
       else
           {
+	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){		  
       ui8_usart1_tx_buffer[8] = rt_vars.ui8_target_max_battery_power_div25;
-          }
+	  }
+	  else{ui8_usart1_tx_buffer[8] = rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)];}	  
+	  }
 
     break;
 	 
     case 6:
       // cadence sensor mode
-      ui8_usart1_tx_buffer[6] = rt_vars.ui8_cadence_sensor_mode;
+      //ui8_usart1_tx_buffer[6] = rt_vars.ui8_cadence_sensor_mode;
 	  // cadence sensor pulse high percentage
-	  if (rt_vars.ui8_cadence_sensor_mode == ADVANCED_MODE){
-      uint16_t ui16_temp = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;
-      ui8_usart1_tx_buffer[7] = (uint8_t) (ui16_temp & 0xff);
-      ui8_usart1_tx_buffer[8] = (uint8_t) (ui16_temp >> 8);
-	}
+	  //if (rt_vars.ui8_cadence_sensor_mode == ADVANCED_MODE){
+      //uint16_t ui16_temp = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;
+      //ui8_usart1_tx_buffer[7] = (uint8_t) (ui16_temp & 0xff);
+      //ui8_usart1_tx_buffer[8] = (uint8_t) (ui16_temp >> 8);
+	//}
 	break;
 	
     default:
@@ -460,6 +440,7 @@ static void rt_calc_odometer(void) {
 			// ui_vars.ui16_distance_since_power_on_x10 += 1;
 			rt_vars.ui32_odometer_x10 += 1;
 			rt_vars.ui32_trip_x10 += 1;
+			ui8_01km_flag = 1;
 
 			// reset the always incrementing value (up to motor controller power reset) by setting the offset to current value
 			rt_vars.ui32_wheel_speed_sensor_tick_counter_offset =
@@ -624,8 +605,8 @@ void copy_rt_to_ui_vars(void) {
 	ui_vars.ui16_pedal_torque_x100 = rt_vars.ui16_pedal_torque_x100;	
     ui_vars.ui16_pedal_power_x10 = rt_vars.ui16_pedal_power_x10;
     
-	if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
-	ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;	
+	//if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
+	//ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;	
 
 	//ui_vars.ui32_nav_turn_distance = rt_vars.ui32_nav_turn_distance;
 	//ui_vars.ui32_nav_total_distance = rt_vars.ui32_nav_total_distance;
@@ -640,16 +621,19 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_assist_level = ui_vars.ui8_assist_level;
 	rt_vars.ui8_number_of_assist_levels = ui_vars.ui8_number_of_assist_levels;
 	rt_vars.ui8_eMTB_assist_level = ui_vars.ui8_eMTB_assist_level;
-    rt_vars.ui8_torque_multiply_factor = ui_vars.ui8_torque_multiply_factor;
-	rt_vars.ui8_cadence_RPM_switch = ui_vars.ui8_cadence_RPM_switch;
+    rt_vars.ui8_torque_boost_factor = ui_vars.ui8_torque_boost_factor;
+	rt_vars.ui8_cadence_RPM_limit = ui_vars.ui8_cadence_RPM_limit;
 	rt_vars.ui8_lights_configuration = ui_vars.ui8_lights_configuration;
 	rt_vars.ui8_motor_acceleration = ui_vars.ui8_motor_acceleration;
 	
-	
 	for (uint8_t i = 0; i < 5; i++) {
-	  rt_vars.ui16_assist_level_factor[i] = ui_vars.ui16_assist_level_factor[i];
-	}
-    
+    rt_vars.ui8_target_peak_battery_power_div25[i] = ui_vars.ui8_target_peak_battery_power_div25[i];
+    }
+
+	for (uint8_t i = 0; i < 5; i++) {
+    rt_vars.ui8_motor_acceleration_level[i] = ui_vars.ui8_motor_acceleration_level[i];
+    }
+	
 	for (uint8_t i = 0; i < 5; i++) {
     rt_vars.ui8_walk_assist_level_factor[i] = ui_vars.ui8_walk_assist_level_factor[i];
     }
@@ -658,13 +642,7 @@ void copy_rt_to_ui_vars(void) {
 	  rt_vars.ui8_assist_level_power_assist[i] = ui_vars.ui8_assist_level_power_assist[i];
 	}	
 	
-	for (uint8_t i = 0; i < 5; i++) {
-	  rt_vars.ui8_assist_level_cadence_assist[i] = ui_vars.ui8_assist_level_cadence_assist[i];
-	}	
-
-	for (uint8_t i = 0; i < 5; i++) {
-	  rt_vars.ui8_assist_level_torque_assist[i] = ui_vars.ui8_assist_level_torque_assist[i];
-	}	
+	
 	
 	rt_vars.ui16_battery_voltage_reset_wh_counter_x10 = ui_vars.ui16_battery_voltage_reset_wh_counter_x10;
 	rt_vars.ui8_lights = ui_vars.ui8_lights;
@@ -689,8 +667,8 @@ void copy_rt_to_ui_vars(void) {
     rt_vars.ui8_street_mode_power_limit_div25 = ui_vars.ui8_street_mode_power_limit_div25;
     rt_vars.ui8_street_mode_throttle_enabled = ui_vars.ui8_street_mode_throttle_enabled;
     rt_vars.ui8_riding_mode = ui_vars.ui8_riding_mode;
-	rt_vars.ui8_cadence_sensor_mode = ui_vars.ui8_cadence_sensor_mode;
-	rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10;
+	//rt_vars.ui8_cadence_sensor_mode = ui_vars.ui8_cadence_sensor_mode;
+	//rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10;
 	rt_vars.ui8_optional_ADC_function = ui_vars.ui8_optional_ADC_function;
 	rt_vars.ui8_target_battery_max_power_div25 = ui_vars.ui8_target_battery_max_power_div25;
     rt_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100 = ui_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100;
@@ -698,6 +676,7 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_torque_sensor_calibration_feature_enabled = ui_vars.ui8_torque_sensor_calibration_feature_enabled;
 	rt_vars.ui8_field_weakening_enabled = ui_vars.ui8_field_weakening_enabled;
 	rt_vars.ui8_field_weakening_current = ui_vars.ui8_field_weakening_current;
+	rt_vars.ui8_battery_soc_enable = ui_vars.ui8_battery_soc_enable;
 	
 }
 
@@ -795,8 +774,8 @@ void uart_data_clock(void) {
           }else{rt_vars.ui16_pedal_weight = ui16_pedal_torque_temp * 10 / 167;}
 		  
 		  //cadence sensor pulse high percentage calibration
-		  if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
-		  rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = (((uint16_t) p_rx_buffer[23]) << 8) + ((uint16_t) p_rx_buffer[22]);
+		 // if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
+		 // rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = (((uint16_t) p_rx_buffer[23]) << 8) + ((uint16_t) p_rx_buffer[22]);
 
     
 
@@ -854,6 +833,9 @@ void prepare_torque_sensor_calibration_table(void) {
 
     for (uint8_t i = 0; i < 6; i++) {
       rt_vars.ui16_torque_sensor_calibration_table[i][0] = ui_vars.ui16_torque_sensor_calibration_table[i][1];
+	  //we need raw values for android app
+	  rt_vars.ui16_torque_sensor_calibration_ble_table[i][0] = ui_vars.ui16_torque_sensor_calibration_table[i][0]; //kg vlues	  
+	  rt_vars.ui16_torque_sensor_calibration_ble_table[i][1] = ui_vars.ui16_torque_sensor_calibration_table[i][1]; //adc values
     }
   }
   // get the delta values of ADC steps per kg

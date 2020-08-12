@@ -11,7 +11,7 @@ static Field wheelMenus[] =
 
 static Field batteryMenus[] =
 		{
-		FIELD_EDITABLE_UINT(_S("Max current", "Max curren"), &ui_vars.ui8_battery_max_current, "amps", 1, 30),
+		FIELD_EDITABLE_UINT(_S("Max current", "Max curren"), &ui_vars.ui8_battery_max_current, "amps", 1, 18),
 		FIELD_EDITABLE_UINT(_S("Low cut-off", "Lo cut-off"), &ui_vars.ui16_battery_low_voltage_cut_off_x10, "volts", 160, 630, .div_digits = 1),
         FIELD_EDITABLE_UINT(_S("Resistance", "Resistance"), &ui_vars.ui16_battery_pack_resistance_x1000, "mohm", 0, 1000),
         FIELD_READONLY_UINT(_S("Voltage est", "Voltag est"), &ui_vars.ui16_battery_voltage_soc_x10, "volts", false, .div_digits = 1),
@@ -21,7 +21,6 @@ static Field batteryMenus[] =
 
 static Field batterySOCMenus[] =
 		{
-		FIELD_EDITABLE_ENUM("Text", &ui_vars.ui8_battery_soc_enable, "disable", "SOC %", "volts"),
 		FIELD_EDITABLE_UINT(_S("Reset at voltage", "Reset at"), &ui_vars.ui16_battery_voltage_reset_wh_counter_x10, "volts", 160, 630, .div_digits = 1),
 		FIELD_EDITABLE_UINT(_S("Battery total Wh", "Batt total"), &ui_vars.ui32_wh_x10_100_percent, "whr", 0, 9990, .div_digits = 1, .inc_step = 100),
 		FIELD_EDITABLE_UINT("Used Wh", &ui_vars.ui32_wh_x10, "whr", 0, 99900, .div_digits = 1, .inc_step = 100, .onSetEditable = onSetConfigurationBatterySOCUsedWh),
@@ -29,10 +28,10 @@ static Field batterySOCMenus[] =
 
 static Field motorMenus[] = {
         FIELD_EDITABLE_ENUM(_S("Motor voltage", "Motor volt"), &ui_vars.ui8_motor_type, "48V", "36V"),
+		FIELD_EDITABLE_ENUM(_S("Field weakening", "Field wk"), &ui_vars.ui8_field_weakening_enabled, "disable", "enable"),
+		FIELD_EDITABLE_UINT(_S("FW current boost", "FW current"), &ui_vars.ui8_field_weakening_current, "", 0, 25, .inc_step = 5), 		
         FIELD_EDITABLE_UINT(_S("Motor acceleration", "Mot acc"), &ui_vars.ui8_motor_acceleration, "", 0, 50),
         FIELD_EDITABLE_UINT(_S("Z-cadence assist thd", "Z-cad thd"), &ui_vars.ui8_motor_assistance_startup_without_pedal_rotation, "", 0, 100),
-		FIELD_EDITABLE_ENUM(_S("Field weakening", "Field weak"), &ui_vars.ui8_field_weakening_enabled, "disable", "enable"),
-		FIELD_EDITABLE_UINT(_S("FW current boost", "FW current"), &ui_vars.ui8_field_weakening_current, "", 0, 25, .inc_step = 5),  			
 		FIELD_END };
 
 static Field torqueSensorMenus[] =
@@ -59,24 +58,14 @@ static Field torqueSensorMenus[] =
 
 static Field assistMenus[] =
 		{
-		FIELD_EDITABLE_ENUM(_S("Assist mode", "Asst mode"), &ui_vars.ui8_riding_mode_ui, "OFF", "PAM", "TAM", "Exper"),
+		//FIELD_EDITABLE_ENUM(_S("Assist mode", "Asst mode"), &ui_vars.ui8_riding_mode_ui, "OFF", "PAM"),
 		FIELD_EDITABLE_UINT(_S("eMTB sensitivity", "eMTB sens"), &ui_vars.ui8_eMTB_assist_level, "", 1, 10),						
 		FIELD_EDITABLE_UINT(_S("Num assist levels", "Num Levels"), &ui_vars.ui8_number_of_assist_levels, "", 1, 5),
-		FIELD_EDITABLE_UINT("PA Level 1", &ui_vars.ui8_assist_level_power_assist[0], "", 0, 255, .div_digits = 1),
-		FIELD_EDITABLE_UINT("PA Level 2", &ui_vars.ui8_assist_level_power_assist[1], "", 0, 255, .div_digits = 1),
-		FIELD_EDITABLE_UINT("PA Level 3", &ui_vars.ui8_assist_level_power_assist[2], "", 0, 255, .div_digits = 1),
-		FIELD_EDITABLE_UINT("PA Level 4", &ui_vars.ui8_assist_level_power_assist[3], "", 0, 255, .div_digits = 1),
-		FIELD_EDITABLE_UINT("PA Level 5", &ui_vars.ui8_assist_level_power_assist[4], "", 0, 255, .div_digits = 1),
-		FIELD_EDITABLE_UINT("TA Level 1", &ui_vars.ui8_assist_level_torque_assist[0], "", 0, 100),
-		FIELD_EDITABLE_UINT("TA Level 2", &ui_vars.ui8_assist_level_torque_assist[1], "", 0, 100),
-		FIELD_EDITABLE_UINT("TA Level 3", &ui_vars.ui8_assist_level_torque_assist[2], "", 0, 100),
-		FIELD_EDITABLE_UINT("TA Level 4", &ui_vars.ui8_assist_level_torque_assist[3], "", 0, 100),
-		FIELD_EDITABLE_UINT("TA Level 5", &ui_vars.ui8_assist_level_torque_assist[4], "", 0, 100),	
-		FIELD_EDITABLE_UINT("CA Level 1", &ui_vars.ui8_assist_level_cadence_assist[0], "", 0, 100),
-		FIELD_EDITABLE_UINT("CA Level 2", &ui_vars.ui8_assist_level_cadence_assist[1], "", 0, 100),
-		FIELD_EDITABLE_UINT("CA Level 3", &ui_vars.ui8_assist_level_cadence_assist[2], "", 0, 100),
-		FIELD_EDITABLE_UINT("CA Level 4", &ui_vars.ui8_assist_level_cadence_assist[3], "", 0, 100),
-		FIELD_EDITABLE_UINT("CA Level 5", &ui_vars.ui8_assist_level_cadence_assist[4], "", 0, 100),								
+		FIELD_EDITABLE_UINT("PA Level 1", &ui_vars.ui8_assist_level_power_assist[0], "", 0, 50, .div_digits = 1),
+		FIELD_EDITABLE_UINT("PA Level 2", &ui_vars.ui8_assist_level_power_assist[1], "", 0, 50, .div_digits = 1),
+		FIELD_EDITABLE_UINT("PA Level 3", &ui_vars.ui8_assist_level_power_assist[2], "", 0, 50, .div_digits = 1),
+		FIELD_EDITABLE_UINT("PA Level 4", &ui_vars.ui8_assist_level_power_assist[3], "", 0, 50, .div_digits = 1),
+		FIELD_EDITABLE_UINT("PA Level 5", &ui_vars.ui8_assist_level_power_assist[4], "", 0, 50, .div_digits = 1),
 		FIELD_END };
 
 static Field walkAssistMenus[] =
@@ -114,6 +103,7 @@ static Field displayMenus[] =
 		FIELD_EDITABLE_UINT("Brightness off", &ui_vars.ui8_lcd_backlight_off_brightness, "", 5, 100, .inc_step = 5, .onSetEditable = onSetConfigurationDisplayLcdBacklightOffBrightness),
 		FIELD_EDITABLE_ENUM("Buttons invert", &ui_vars.ui8_buttons_up_down_invert, "default", "invert"),
 #endif
+		FIELD_EDITABLE_ENUM("Text", &ui_vars.ui8_battery_soc_enable, "disable", "SOC %", "volts"),
 		FIELD_EDITABLE_UINT(_S("Auto power off", "Auto p off"), &ui_vars.ui8_lcd_power_off_time_minutes, "mins", 0, 255),
 		FIELD_EDITABLE_ENUM("Units", &ui_vars.ui8_units_type, "SI", "Imperial"),
 #ifndef SW102
@@ -127,11 +117,11 @@ static Field displayMenus[] =
 		FIELD_END };
 
 static Field variousMenus[] = {
-		FIELD_EDITABLE_ENUM(_S("Cadence Mode", "Cad mode"), &ui_vars.ui8_cadence_sensor_mode, "Standard", "Advanced", "CADCSMode"),
-		FIELD_EDITABLE_ENUM(_S("Cadence calib", "Cad calib"), &ui_vars.ui8_cadence_sensor_calib_enabled, "disable", "enable"),
-		FIELD_EDITABLE_UINT("Cadence Pulse", &ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10, "",200,800),
-		FIELD_EDITABLE_UINT("Torque factor", &ui_vars.ui8_torque_multiply_factor, "", 1, 10),
-		FIELD_EDITABLE_UINT("Cadence limit", &ui_vars.ui8_cadence_RPM_switch, "RPM", 0, 120),
+		//FIELD_EDITABLE_ENUM(_S("Cadence Mode", "Cad mode"), &ui_vars.ui8_cadence_sensor_mode, "Standard", "Advanced", "CADCSMode"),
+		//FIELD_EDITABLE_ENUM(_S("Cadence calib", "Cad calib"), &ui_vars.ui8_cadence_sensor_calib_enabled, "disable", "enable"),
+		//FIELD_EDITABLE_UINT("Cadence Pulse", &ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10, "",200,800),
+		FIELD_EDITABLE_UINT("Boost factor", &ui_vars.ui8_torque_boost_factor, "", 1, 10),
+		FIELD_EDITABLE_UINT("Cadence limit", &ui_vars.ui8_cadence_RPM_limit, "RPM", 0, 120),
 	    FIELD_EDITABLE_UINT("Odometer", &ui_vars.ui32_odometer_x10, "km", 0, UINT32_MAX, .div_digits = 1, .inc_step = 100, .onSetEditable = onSetConfigurationWheelOdometer),
 		FIELD_END };
 
@@ -332,7 +322,8 @@ static void configExit() {
 	set_conversions(); // we just changed units
 
     update_battery_power_usage_label();
-
+	// we need to update riding_mode
+    ui_vars.ui8_riding_mode = ui_vars.ui8_riding_mode_ui;
 	// send the configurations to TSDZ2
   //if (g_motor_init_state == MOTOR_INIT_READY)
    // g_motor_init_state = MOTOR_INIT_SET_CONFIGURATIONS;

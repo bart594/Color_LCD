@@ -15,8 +15,8 @@
 
 // For compatible changes, just add new fields at the end of the table (they will be inited to 0xff for old eeprom images).  For incompatible
 // changes bump up EEPROM_MIN_COMPAT_VERSION and the user's EEPROM settings will be discarded.
-#define EEPROM_MIN_COMPAT_VERSION 0x35
-#define EEPROM_VERSION 0x35
+#define EEPROM_MIN_COMPAT_VERSION 0x37
+#define EEPROM_VERSION 0x37
 
 typedef struct {
   graph_auto_max_min_t auto_max_min;
@@ -37,7 +37,7 @@ typedef struct eeprom_data {
 	uint8_t ui8_target_max_battery_power_div25;
 	uint8_t ui8_battery_max_current;
 	uint8_t ui8_motor_max_current;
-  uint8_t ui8_motor_current_min_adc;
+    uint8_t ui8_motor_current_min_adc;
 	uint8_t ui8_ramp_up_amps_per_second_x10;
 	uint16_t ui16_battery_low_voltage_cut_off_x10;
 	uint8_t ui8_motor_type;
@@ -57,21 +57,14 @@ typedef struct eeprom_data {
 	uint8_t ui8_lcd_backlight_on_brightness;
 	uint8_t ui8_lcd_backlight_off_brightness;
 	uint16_t ui16_battery_pack_resistance_x1000;
-	uint8_t ui8_offroad_feature_enabled;
-	uint8_t ui8_offroad_enabled_on_startup;
-	uint8_t ui8_offroad_speed_limit;
-	uint8_t ui8_offroad_power_limit_enabled;
-	uint8_t ui8_offroad_power_limit_div25;
 	uint32_t ui32_odometer_x10;
 	uint8_t  ui8_walk_assist_feature_enabled;
 	uint8_t  ui8_walk_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t	 ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
-	uint8_t  ui8_assist_level_cadence_assist[ASSIST_LEVEL_NUMBER];
-	uint8_t  ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];	
+	uint8_t  ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
+	uint8_t  ui8_motor_acceleration_level[ASSIST_LEVEL_NUMBER];	
 	uint8_t ui8_riding_mode_ui;
 	uint8_t ui8_eMTB_assist_level;
-	uint8_t ui8_cadence_sensor_mode;
-	uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
 	uint8_t ui8_optional_ADC_function;
 	uint8_t ui8_target_battery_max_power_div25;
 	uint8_t ui8_motor_acceleration;
@@ -96,6 +89,10 @@ typedef struct eeprom_data {
   uint8_t ui8_street_mode_speed_limit;
   uint8_t ui8_street_mode_power_limit_div25;
   uint8_t ui8_street_mode_throttle_enabled;
+  uint8_t ui8_field_weakening_enabled;
+  uint8_t ui8_field_weakening_current;
+  uint8_t ui8_cadence_RPM_limit;
+  uint8_t ui8_torque_boost_factor;
 
 #ifndef SW102
 	Graph_eeprom graph_eeprom[VARS_SIZE];
@@ -154,9 +151,6 @@ typedef struct eeprom_data {
   uint8_t motorFOCField_x_axis_scale_config;
 #endif
 
-  uint8_t ui8_pedal_cadence_fast_stop;
-  uint8_t ui8_coast_brake_adc;
-
 // FIXME align to 32 bit value by end of structure and pack other fields
 } eeprom_data_t;
 
@@ -167,48 +161,43 @@ void eeprom_init_defaults(void);
 
 // *************************************************************************** //
 // EEPROM memory variables default values
-#define DEFAULT_VALUE_ASSIST_LEVEL                                  0
-#define DEFAULT_VALUE_NUMBER_OF_ASSIST_LEVELS                       20
-#define DEFAULT_VALUE_WHEEL_PERIMETER                               2100 // 27.5'' wheel: 2100mm perimeter
-#define DEFAULT_VALUE_WHEEL_MAX_SPEED                               50
+#define DEFAULT_VALUE_ASSIST_LEVEL                                  2
+#define DEFAULT_VALUE_NUMBER_OF_ASSIST_LEVELS                       5
+#define DEFAULT_VALUE_WHEEL_PERIMETER                               2100 // 26'' wheel: 2100mm perimeter
+#define DEFAULT_VALUE_WHEEL_MAX_SPEED                               45
 #define DEFAULT_VALUE_UNITS_TYPE                                    0 // 0 = km/h
 #define DEFAULT_VALUE_WH_X10_OFFSET                                 0
-#define DEFAULT_VALUE_HW_X10_100_PERCENT                            4000 // default to a battery of 400 Wh
+#define DEFAULT_VALUE_WH_X10_100_PERCENT                            5000 // default to a battery of 500 Wh
 #define DEAFULT_VALUE_SHOW_NUMERIC_BATTERY_SOC                      1 // SOC
 #define DEFAULT_VALUE_BATTERY_MAX_CURRENT                           16 // 16 amps
-#define DEFAULT_VALUE_TARGET_MAX_BATTERY_POWER_DIV25                60 // e.g. 20 = 20 * 25 = 500, 0 is disabled
+#define DEFAULT_VALUE_TARGET_MAX_BATTERY_POWER_DIV25                30 // e.g. 20 = 20 * 25 = 500, 0 is disabled
 #define DEFAULT_VALUE_BATTERY_LOW_VOLTAGE_CUT_OFF_X10               440 // 52v battery, LVC = 42.0 (3.0 * 14)
 #define DEFAULT_VALUE_MOTOR_TYPE                                    0 // ui8_motor_type = 0 = 48V
 #define DEFAULT_VALUE_MOTOR_ASSISTANCE_WITHOUT_PEDAL_ROTATION       0 // 0 to keep this feature disable
-#define DEFAULT_VALUE_ASSIST_LEVEL_POWER_1                          4 // 0.2
+#define DEFAULT_VALUE_ASSIST_LEVEL_POWER_1                          4 // 0.4
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_2                          8
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_3                          12
-#define DEFAULT_VALUE_ASSIST_LEVEL_POWER_4                          17
-#define DEFAULT_VALUE_ASSIST_LEVEL_POWER_5                          28
-#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_1                         10
-#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_2                         20
-#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_3                         40
-#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_4                         60
-#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_5                         90
-#define DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_1                        10
-#define DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_2                        20
-#define DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_3                        40
-#define DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_4                        80
-#define DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_5                        120
-#define DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_1                         15 // 0.015
-#define DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_2                         21
-#define DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_3                         30
-#define DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_4                         42
-#define DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_5                         60
+#define DEFAULT_VALUE_ASSIST_LEVEL_POWER_4                          18
+#define DEFAULT_VALUE_ASSIST_LEVEL_POWER_5                          32
 #define DEFAULT_VALUE_WALK_ASSIST_FEATURE_ENABLED                   1
-#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_1                    13
-#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_2                    21
-#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_3                    27
-#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_4                    33
-#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_5                    40
-#define DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT             75 // 75 degrees celsius
+#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_1                    17
+#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_2                    23
+#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_3                    30
+#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_4                    43
+#define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_5                    50
+#define DEFAULT_VALUE_PEAK_POWER_LEVEL_1                    		30
+#define DEFAULT_VALUE_PEAK_POWER_LEVEL_2                    		30
+#define DEFAULT_VALUE_PEAK_POWER_LEVEL_3                    		30
+#define DEFAULT_VALUE_PEAK_POWER_LEVEL_4                    		30
+#define DEFAULT_VALUE_PEAK_POWER_LEVEL_5                    		30
+#define DEFAULT_VALUE_ACCELERATION_LEVEL_1                    		0
+#define DEFAULT_VALUE_ACCELERATION_LEVEL_2                    		0
+#define DEFAULT_VALUE_ACCELERATION_LEVEL_3                    		0
+#define DEFAULT_VALUE_ACCELERATION_LEVEL_4                    		0
+#define DEFAULT_VALUE_ACCELERATION_LEVEL_5                    		0
+#define DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT             60 // 75 degrees celsius
 #define DEFAULT_VALUE_MOTOR_TEMPERATURE_MAX_VALUE_LIMIT             85 // 85 degrees celsius
-#define DEFAULT_VALUE_BATTERY_VOLTAGE_RESET_WH_COUNTER_X10          584 // 52v battery, 58.4 volts at fully charged
+#define DEFAULT_VALUE_BATTERY_VOLTAGE_RESET_WH_COUNTER_X10          580 // 52v battery, 58.4 volts at fully charged
 #define DEFAULT_VALUE_LCD_POWER_OFF_TIME                            60 // 60 minutes, each unit 1 minute
 #ifdef SW102
 #define DEFAULT_VALUE_LCD_BACKLIGHT_ON_BRIGHTNESS                   100 // 8 = 40%
@@ -240,12 +229,12 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_EMTB_ASSIST_LEVEL		    					2
 // default values for cruise function
 #define DEFAULT_VALUE_CRUISE_FUNCTION_TARGET_SPEED_KPH              0  // 0 kph
-//cadence sensor 
-#define DEFAULT_VALUE_CADENCE_SENSOR_MODE							0
-#define DEFAULT_VALUE_CADENCE_SENSOR_PULSE_HIGH_PERCENTAGE_X10      400
 // default value optional ADC function
 #define DEFAULT_VALUE_OPTIONAL_ADC_FUNCTION 						0
-
+#define DEFAULT_VALUE_FIELD_WEAKENING_ENABLED						0
+#define DEFAULT_VALUE_FIELD_WEAKENING_CURRENT						20
+#define DEFAULT_VALUE_RPM_LIMIT										30
+#define DEFAULT_VALUE_BOOST_FACTOR									1
 
 #define BICYCLE_1
 //#define BICYCLE_2
@@ -253,7 +242,7 @@ void eeprom_init_defaults(void);
 #ifdef BICYCLE_1
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_FEATURE_ENABLE       0 // disabled
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_1             0
-#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_1                160
+#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_1                155
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_2             10
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_2                210
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_3             20
@@ -261,9 +250,9 @@ void eeprom_init_defaults(void);
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_4             30
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_4                260
 #define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_5             65
-#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_5                290
-#define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_6             100
-#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_6                310
+#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_5                280
+#define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_6             90
+#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_6                300
 //#define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_7             40
 //#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_7                273
 //#define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_8             100

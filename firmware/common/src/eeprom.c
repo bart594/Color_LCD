@@ -26,19 +26,13 @@ const eeprom_data_t m_eeprom_data_defaults = {
 		.ui8_wheel_max_speed = DEFAULT_VALUE_WHEEL_MAX_SPEED,
 		.ui8_units_type = DEFAULT_VALUE_UNITS_TYPE,
 		.ui32_wh_x10_offset = DEFAULT_VALUE_WH_X10_OFFSET,
-		.ui32_wh_x10_100_percent = DEFAULT_VALUE_HW_X10_100_PERCENT,
+		.ui32_wh_x10_100_percent = DEFAULT_VALUE_WH_X10_100_PERCENT,
 		.ui8_battery_soc_enable = DEAFULT_VALUE_SHOW_NUMERIC_BATTERY_SOC,
 		.ui8_battery_max_current = DEFAULT_VALUE_BATTERY_MAX_CURRENT,
 		.ui8_target_max_battery_power_div25 = DEFAULT_VALUE_TARGET_MAX_BATTERY_POWER_DIV25,
 		.ui16_battery_low_voltage_cut_off_x10 = DEFAULT_VALUE_BATTERY_LOW_VOLTAGE_CUT_OFF_X10,
 		.ui8_motor_type = DEFAULT_VALUE_MOTOR_TYPE,
 		.ui8_motor_assistance_startup_without_pedal_rotation = DEFAULT_VALUE_MOTOR_ASSISTANCE_WITHOUT_PEDAL_ROTATION,
-		.ui16_assist_level_factor = {
-		DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_1,
-		DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_2,
-		DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_3,
-		DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_4,
-		DEFAULT_VALUE_ASSIST_LEVEL_FACTOR_5 },
 		.ui8_number_of_assist_levels = DEFAULT_VALUE_NUMBER_OF_ASSIST_LEVELS,
 		.ui8_motor_temperature_min_value_to_limit =
 		DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT,
@@ -70,18 +64,18 @@ const eeprom_data_t m_eeprom_data_defaults = {
 		DEFAULT_VALUE_ASSIST_LEVEL_POWER_3,
 		DEFAULT_VALUE_ASSIST_LEVEL_POWER_4,
 		DEFAULT_VALUE_ASSIST_LEVEL_POWER_5 },	
-		.ui8_assist_level_cadence_assist = {
-		DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_1,
-		DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_2,
-		DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_3,
-		DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_4,
-		DEFAULT_VALUE_ASSIST_LEVEL_CADENCE_5 },	
-		.ui8_assist_level_torque_assist = {
-		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_1,
-		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_2,
-		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_3,
-		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_4,
-		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_5 },			
+		.ui8_target_peak_battery_power_div25 = {
+		DEFAULT_VALUE_PEAK_POWER_LEVEL_1,
+		DEFAULT_VALUE_PEAK_POWER_LEVEL_2,
+		DEFAULT_VALUE_PEAK_POWER_LEVEL_3,
+		DEFAULT_VALUE_PEAK_POWER_LEVEL_4,
+		DEFAULT_VALUE_PEAK_POWER_LEVEL_5 },
+		.ui8_motor_acceleration_level = {
+		DEFAULT_VALUE_ACCELERATION_LEVEL_1,
+		DEFAULT_VALUE_ACCELERATION_LEVEL_2,
+		DEFAULT_VALUE_ACCELERATION_LEVEL_3,
+		DEFAULT_VALUE_ACCELERATION_LEVEL_4,
+		DEFAULT_VALUE_ACCELERATION_LEVEL_5 },			
 
 #ifdef SW102
     .field_selectors = {
@@ -124,13 +118,17 @@ const eeprom_data_t m_eeprom_data_defaults = {
     .ui8_buttons_up_down_invert = DEFAULT_VALUE_BUTTONS_UP_DOWN_INVERT,
 	.ui8_riding_mode_ui = DEFAULT_VALUE_RIDING_MODE,
 	.ui8_eMTB_assist_level = DEFAULT_VALUE_EMTB_ASSIST_LEVEL,
-	.ui8_cadence_sensor_mode = DEFAULT_VALUE_CADENCE_SENSOR_MODE,
-	.ui16_cadence_sensor_pulse_high_percentage_x10 = DEFAULT_VALUE_CADENCE_SENSOR_PULSE_HIGH_PERCENTAGE_X10,
+	//.ui8_cadence_sensor_mode = DEFAULT_VALUE_CADENCE_SENSOR_MODE,
+	//.ui16_cadence_sensor_pulse_high_percentage_x10 = DEFAULT_VALUE_CADENCE_SENSOR_PULSE_HIGH_PERCENTAGE_X10,
 	.ui8_optional_ADC_function = DEFAULT_VALUE_OPTIONAL_ADC_FUNCTION,
 	.ui8_target_battery_max_power_div25 = DEFAULT_VALUE_TARGET_MAX_BATTERY_POWER_DIV25,
 	.ui8_motor_acceleration = DEFAULT_VALUE_MOTOR_ACCELERATION,
 	.ui8_pedal_torque_per_10_bit_ADC_step_x100 = DEFAULT_VALUE_PEDAL_TORQUE_CALIBRATION,
 	.ui8_cruise_function_target_speed_kph = DEFAULT_VALUE_CRUISE_FUNCTION_TARGET_SPEED_KPH,
+	.ui8_field_weakening_enabled = DEFAULT_VALUE_FIELD_WEAKENING_ENABLED,
+	.ui8_field_weakening_current = DEFAULT_VALUE_FIELD_WEAKENING_CURRENT,		
+	.ui8_cadence_RPM_limit = DEFAULT_VALUE_RPM_LIMIT,	
+	.ui8_torque_boost_factor = DEFAULT_VALUE_BOOST_FACTOR,
 	
 #ifndef SW102
     // enable automatic graph max min for every variable
@@ -268,7 +266,6 @@ void eeprom_init_variables(void) {
 	ui_vars->ui8_motor_type = m_eeprom_data.ui8_motor_type;
 	ui_vars->ui8_motor_assistance_startup_without_pedal_rotation =
 			m_eeprom_data.ui8_motor_assistance_startup_without_pedal_rotation;
-	COPY_ARRAY(ui_vars, &m_eeprom_data, ui16_assist_level_factor);
 	ui_vars->ui8_number_of_assist_levels =
 			m_eeprom_data.ui8_number_of_assist_levels;
 	ui_vars->ui8_motor_temperature_min_value_to_limit =
@@ -291,20 +288,24 @@ void eeprom_init_variables(void) {
 	ui_vars->ui8_riding_mode_ui = m_eeprom_data.ui8_riding_mode_ui;
 	ui_vars->ui8_riding_mode = ui_vars->ui8_riding_mode_ui; //at the start we need to set up riding mode
 	ui_vars->ui8_eMTB_assist_level = m_eeprom_data.ui8_eMTB_assist_level;
-	ui_vars->ui8_cadence_sensor_mode = m_eeprom_data.ui8_cadence_sensor_mode;
-	ui_vars->ui16_cadence_sensor_pulse_high_percentage_x10 = m_eeprom_data.ui16_cadence_sensor_pulse_high_percentage_x10;
+	//ui_vars->ui8_cadence_sensor_mode = m_eeprom_data.ui8_cadence_sensor_mode;
+	//ui_vars->ui16_cadence_sensor_pulse_high_percentage_x10 = m_eeprom_data.ui16_cadence_sensor_pulse_high_percentage_x10;
 	ui_vars->ui8_optional_ADC_function = m_eeprom_data.ui8_optional_ADC_function;
 	ui_vars->ui8_target_battery_max_power_div25 = m_eeprom_data.ui8_target_battery_max_power_div25;
 	ui_vars->ui8_motor_acceleration = m_eeprom_data.ui8_motor_acceleration;
 	ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100 = m_eeprom_data.ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	ui_vars->ui8_cruise_function_target_speed_kph = m_eeprom_data.ui8_cruise_function_target_speed_kph;			
-			
+	ui_vars->ui8_field_weakening_enabled = m_eeprom_data.ui8_field_weakening_enabled;
+	ui_vars->ui8_field_weakening_current = m_eeprom_data.ui8_field_weakening_current;
+	ui_vars->ui8_cadence_RPM_limit = m_eeprom_data.ui8_cadence_RPM_limit;	
+	ui_vars->ui8_torque_boost_factor = m_eeprom_data.ui8_torque_boost_factor;	
+	
 	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_walk_assist_level_factor);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, field_selectors);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, graphs_field_selectors);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_assist_level_power_assist);
-	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_assist_level_torque_assist);	
-	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_assist_level_cadence_assist);
+	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_target_peak_battery_power_div25);
+    COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_motor_acceleration_level);
 	
   ui_vars->ui8_buttons_up_down_invert = m_eeprom_data.ui8_buttons_up_down_invert;
   
@@ -491,7 +492,6 @@ void eeprom_write_variables(void) {
 	m_eeprom_data.ui8_motor_type = ui_vars->ui8_motor_type;
 	m_eeprom_data.ui8_motor_assistance_startup_without_pedal_rotation =
 			ui_vars->ui8_motor_assistance_startup_without_pedal_rotation;
-	COPY_ARRAY(&m_eeprom_data, ui_vars, ui16_assist_level_factor);
 	m_eeprom_data.ui8_number_of_assist_levels =
 			ui_vars->ui8_number_of_assist_levels;
 	m_eeprom_data.ui8_motor_temperature_min_value_to_limit =
@@ -515,12 +515,12 @@ void eeprom_write_variables(void) {
 			ui_vars->ui8_riding_mode_ui;
 	m_eeprom_data.ui8_eMTB_assist_level =
 			ui_vars->ui8_eMTB_assist_level;
-	m_eeprom_data.ui8_cadence_sensor_mode =
-			ui_vars->ui8_cadence_sensor_mode;
+	//m_eeprom_data.ui8_cadence_sensor_mode =
+		//	ui_vars->ui8_cadence_sensor_mode;
 	m_eeprom_data.ui8_optional_ADC_function =
 			ui_vars->ui8_optional_ADC_function;
-	m_eeprom_data.ui16_cadence_sensor_pulse_high_percentage_x10 =
-			ui_vars->ui16_cadence_sensor_pulse_high_percentage_x10;	
+	//m_eeprom_data.ui16_cadence_sensor_pulse_high_percentage_x10 =
+			//ui_vars->ui16_cadence_sensor_pulse_high_percentage_x10;	
 	m_eeprom_data.ui8_target_battery_max_power_div25 =
 			ui_vars->ui8_target_battery_max_power_div25;				
 	m_eeprom_data.ui8_motor_acceleration =
@@ -529,11 +529,15 @@ void eeprom_write_variables(void) {
 			ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100;	
 	m_eeprom_data.ui8_cruise_function_target_speed_kph =
 			ui_vars->ui8_cruise_function_target_speed_kph;	
-			
+	m_eeprom_data.ui8_field_weakening_enabled = ui_vars->ui8_field_weakening_enabled;
+	m_eeprom_data.ui8_field_weakening_current = ui_vars->ui8_field_weakening_current;	
+	m_eeprom_data.ui8_cadence_RPM_limit = ui_vars->ui8_cadence_RPM_limit;
+	m_eeprom_data.ui8_torque_boost_factor = ui_vars->ui8_torque_boost_factor;
+	
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_walk_assist_level_factor);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_power_assist);
-	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_torque_assist);	
-	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_cadence_assist);	
+	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_target_peak_battery_power_div25);
+	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_motor_acceleration_level);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, field_selectors);
     COPY_ARRAY(&m_eeprom_data, ui_vars, graphs_field_selectors);
   m_eeprom_data.ui8_buttons_up_down_invert = ui_vars->ui8_buttons_up_down_invert;
