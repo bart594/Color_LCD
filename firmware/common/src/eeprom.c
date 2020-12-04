@@ -63,7 +63,13 @@ const eeprom_data_t m_eeprom_data_defaults = {
 		DEFAULT_VALUE_ASSIST_LEVEL_POWER_2,
 		DEFAULT_VALUE_ASSIST_LEVEL_POWER_3,
 		DEFAULT_VALUE_ASSIST_LEVEL_POWER_4,
-		DEFAULT_VALUE_ASSIST_LEVEL_POWER_5 },	
+		DEFAULT_VALUE_ASSIST_LEVEL_POWER_5 },
+		.ui8_assist_level_torque_assist = {
+		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_1,
+		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_2,
+		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_3,
+		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_4,
+		DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_5 },		
 		.ui8_target_peak_battery_power_div25 = {
 		DEFAULT_VALUE_PEAK_POWER_LEVEL_1,
 		DEFAULT_VALUE_PEAK_POWER_LEVEL_2,
@@ -71,11 +77,11 @@ const eeprom_data_t m_eeprom_data_defaults = {
 		DEFAULT_VALUE_PEAK_POWER_LEVEL_4,
 		DEFAULT_VALUE_PEAK_POWER_LEVEL_5 },
 		.ui8_motor_acceleration_level = {
-		DEFAULT_VALUE_ACCELERATION_LEVEL_1,
-		DEFAULT_VALUE_ACCELERATION_LEVEL_2,
-		DEFAULT_VALUE_ACCELERATION_LEVEL_3,
-		DEFAULT_VALUE_ACCELERATION_LEVEL_4,
-		DEFAULT_VALUE_ACCELERATION_LEVEL_5 },			
+		DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_1,
+		DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_2,
+		DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_3,
+		DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_4,
+		DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_5 },			
 
 #ifdef SW102
     .field_selectors = {
@@ -128,7 +134,7 @@ const eeprom_data_t m_eeprom_data_defaults = {
 	.ui8_field_weakening_enabled = DEFAULT_VALUE_FIELD_WEAKENING_ENABLED,
 	.ui8_field_weakening_current = DEFAULT_VALUE_FIELD_WEAKENING_CURRENT,		
 	.ui8_cadence_RPM_limit = DEFAULT_VALUE_RPM_LIMIT,	
-	.ui8_torque_boost_factor = DEFAULT_VALUE_BOOST_FACTOR,
+	.ui8_soft_start_feature_enabled = DEFAULT_VALUE_SOFT_START_FEATURE,
 	
 #ifndef SW102
     // enable automatic graph max min for every variable
@@ -298,12 +304,13 @@ void eeprom_init_variables(void) {
 	ui_vars->ui8_field_weakening_enabled = m_eeprom_data.ui8_field_weakening_enabled;
 	ui_vars->ui8_field_weakening_current = m_eeprom_data.ui8_field_weakening_current;
 	ui_vars->ui8_cadence_RPM_limit = m_eeprom_data.ui8_cadence_RPM_limit;	
-	ui_vars->ui8_torque_boost_factor = m_eeprom_data.ui8_torque_boost_factor;	
+	ui_vars->ui8_soft_start_feature_enabled = m_eeprom_data.ui8_soft_start_feature_enabled;	
 	
 	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_walk_assist_level_factor);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, field_selectors);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, graphs_field_selectors);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_assist_level_power_assist);
+	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_assist_level_torque_assist);	
 	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_target_peak_battery_power_div25);
     COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_motor_acceleration_level);
 	
@@ -532,10 +539,11 @@ void eeprom_write_variables(void) {
 	m_eeprom_data.ui8_field_weakening_enabled = ui_vars->ui8_field_weakening_enabled;
 	m_eeprom_data.ui8_field_weakening_current = ui_vars->ui8_field_weakening_current;	
 	m_eeprom_data.ui8_cadence_RPM_limit = ui_vars->ui8_cadence_RPM_limit;
-	m_eeprom_data.ui8_torque_boost_factor = ui_vars->ui8_torque_boost_factor;
+	m_eeprom_data.ui8_soft_start_feature_enabled = ui_vars->ui8_soft_start_feature_enabled;
 	
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_walk_assist_level_factor);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_power_assist);
+	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_torque_assist);	
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_target_peak_battery_power_div25);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_motor_acceleration_level);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, field_selectors);

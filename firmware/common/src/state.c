@@ -71,7 +71,7 @@ void rt_send_tx_package(void) {
 
 	ui8_usart1_tx_buffer[2] = ui8_message_id;
  
- // riding mode
+    // riding mode
     ui8_usart1_tx_buffer[3] = rt_vars.ui8_riding_mode;
 
 	// riding mode parameter
@@ -81,7 +81,10 @@ void rt_send_tx_package(void) {
         
           if (rt_vars.ui8_assist_level > 0)
           {
-            ui8_usart1_tx_buffer[4] = rt_vars.ui8_assist_level_power_assist[((rt_vars.ui8_assist_level) - 1)];
+            //send power/torque asssist value
+			if (ui8_message_id % 2 == 0 ){
+			ui8_usart1_tx_buffer[4] = rt_vars.ui8_assist_level_power_assist[((rt_vars.ui8_assist_level) - 1)];
+			}else{ui8_usart1_tx_buffer[4] = rt_vars.ui8_assist_level_torque_assist[((rt_vars.ui8_assist_level) - 1)];}
           }
           else
           {
@@ -177,7 +180,7 @@ void rt_send_tx_package(void) {
     break;
 
 	case 3:
-	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_torque_boost_factor;
+	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_soft_start_feature_enabled;
 
 	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_cadence_RPM_limit;
 
@@ -207,7 +210,11 @@ void rt_send_tx_package(void) {
       // battery power limit
       if (rt_vars.ui8_street_mode_feature_enabled)
           {
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_street_mode_power_limit_div25;
+	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){		  
+      ui8_usart1_tx_buffer[8] = rt_vars.ui8_street_mode_power_limit_div25;}		  
+      else if (rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)] > rt_vars.ui8_street_mode_power_limit_div25){
+	  ui8_usart1_tx_buffer[8] = rt_vars.ui8_street_mode_power_limit_div25;}
+	  else {ui8_usart1_tx_buffer[8] = rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)];}
           }
       else
           {
@@ -281,10 +288,10 @@ void rt_send_tx_package(void) {
       ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[5][1];    
 
     break;
-	 
+	//parameters for soft start 
     case 6:
-	  ui8_usart1_tx_buffer[6] = 0;
-      ui8_usart1_tx_buffer[7] = 0;
+	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_assist_level_power_assist[0];
+      ui8_usart1_tx_buffer[7] = rt_vars.ui8_assist_level_torque_assist[0];
       ui8_usart1_tx_buffer[8] = 0;
 
 	break;
@@ -621,7 +628,7 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_assist_level = ui_vars.ui8_assist_level;
 	rt_vars.ui8_number_of_assist_levels = ui_vars.ui8_number_of_assist_levels;
 	rt_vars.ui8_eMTB_assist_level = ui_vars.ui8_eMTB_assist_level;
-    rt_vars.ui8_torque_boost_factor = ui_vars.ui8_torque_boost_factor;
+    rt_vars.ui8_soft_start_feature_enabled = ui_vars.ui8_soft_start_feature_enabled;
 	rt_vars.ui8_cadence_RPM_limit = ui_vars.ui8_cadence_RPM_limit;
 	rt_vars.ui8_lights_configuration = ui_vars.ui8_lights_configuration;
 	rt_vars.ui8_motor_acceleration = ui_vars.ui8_motor_acceleration;
@@ -641,7 +648,10 @@ void copy_rt_to_ui_vars(void) {
 	for (uint8_t i = 0; i < 5; i++) {
 	  rt_vars.ui8_assist_level_power_assist[i] = ui_vars.ui8_assist_level_power_assist[i];
 	}	
-	
+
+	for (uint8_t i = 0; i < 5; i++) {
+	  rt_vars.ui8_assist_level_torque_assist[i] = ui_vars.ui8_assist_level_torque_assist[i];
+	}		
 	
 	
 	rt_vars.ui16_battery_voltage_reset_wh_counter_x10 = ui_vars.ui16_battery_voltage_reset_wh_counter_x10;

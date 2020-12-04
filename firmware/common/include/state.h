@@ -99,7 +99,8 @@ typedef struct rt_vars_struct {
 	uint16_t ui16_battery_pack_resistance_x1000;
 	uint8_t ui8_motor_type;
 	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
-	uint8_t	 ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
+	uint8_t	ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
+	uint8_t	ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];	
 	uint8_t ui8_walk_assist_feature_enabled;
 	uint8_t ui8_walk_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
@@ -120,7 +121,7 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_cruise_function_target_speed_kph;
 	uint8_t	ui8_temperature_current_limiting_value;
 	uint8_t ui8_eMTB_assist_level;
-	uint8_t ui8_torque_boost_factor;
+	uint8_t ui8_soft_start_feature_enabled;
     uint8_t ui8_cadence_RPM_limit;
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_lights;
@@ -163,7 +164,7 @@ typedef struct rt_vars_struct {
 typedef struct ui_vars_struct {
 	uint16_t ui16_adc_battery_voltage;
 	uint8_t ui8_battery_current_x5;
-  uint16_t ui16_battery_power_loss;
+    uint16_t ui16_battery_power_loss;
 	uint8_t ui8_motor_current_x5;
 	uint8_t ui8_adc_throttle;
 	uint8_t ui8_throttle;
@@ -215,7 +216,8 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_battery_pack_resistance_estimated_x1000;
 	uint8_t ui8_motor_type;
 	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
-	uint8_t	 ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
+	uint8_t	ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
+	uint8_t	ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_walk_assist_feature_enabled;
 	uint8_t ui8_walk_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
@@ -244,7 +246,7 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	uint8_t ui8_cruise_function_target_speed_kph;
 	uint8_t ui8_eMTB_assist_level;
-	uint8_t ui8_torque_boost_factor;
+	uint8_t ui8_soft_start_feature_enabled;
 	uint8_t ui8_cadence_RPM_limit;
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_field_weakening_enabled;

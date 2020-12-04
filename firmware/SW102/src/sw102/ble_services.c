@@ -637,17 +637,20 @@ void ble_uart_send(rt_vars_t *rt_vars) {
 		data_array[10] = rt_vars->ui8_field_weakening_enabled;
 		data_array[11] = rt_vars->ui8_field_weakening_current;
 		data_array[12] = rt_vars->ui8_cadence_RPM_limit;
-		data_array[13] = rt_vars->ui8_torque_boost_factor;
+		data_array[13] = rt_vars->ui8_soft_start_feature_enabled;
         data_array[14] = rt_vars->ui8_battery_soc_enable;		
 
         ble_nus_string_send(&m_nus, data_array, 20);
 		
 		data_array[0] = 0x43;
 		data_array[1] = 3;  			//third  chunk of config data
-        for (int i=0;i<5;i++)
+        
+		for (int i=0;i<5;i++)
             data_array[2+i] = rt_vars->ui8_target_peak_battery_power_div25[i];
-        for (int i=0;i<5;i++)
+        
+		for (int i=0;i<5;i++)
             data_array[7+i] = rt_vars->ui8_motor_acceleration_level[i];	
+		
 		for (int i=0;i<5;i++)
 			data_array[12+i] = rt_vars->ui8_walk_assist_level_factor[i];			
 
@@ -656,22 +659,26 @@ void ble_uart_send(rt_vars_t *rt_vars) {
 		
 		data_array[0] = 0x43;
 		data_array[1] = 4;  			//fourth  chunk of config data
+		
 		for (int i=0;i<5;i++)
-            data_array[2+i] = rt_vars->ui8_assist_level_power_assist[i];		
-	    data_array[7] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent & 0xff);
-		data_array[8] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent >> 8);
-		data_array[9] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent  >> 16); 
-		data_array[10] = (uint8_t) (rt_vars->ui32_wh_x10_offset & 0xff);
-		data_array[11] = (uint8_t) (rt_vars->ui32_wh_x10_offset >> 8);
-		data_array[12] = (uint8_t) (rt_vars->ui32_wh_x10_offset >> 16);		
+            data_array[2+i] = rt_vars->ui8_assist_level_power_assist[i];
+		
+		for (int i=0;i<5;i++)
+            data_array[7+i] = rt_vars->ui8_assist_level_torque_assist[i];			
+	    data_array[12] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent & 0xff);
+		data_array[13] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent >> 8);
+		data_array[14] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent  >> 16); 
+		data_array[15] = (uint8_t) (rt_vars->ui32_wh_x10_offset & 0xff);
+		data_array[16] = (uint8_t) (rt_vars->ui32_wh_x10_offset >> 8);
+		data_array[17] = (uint8_t) (rt_vars->ui32_wh_x10_offset >> 16);		
 
 		ble_nus_string_send(&m_nus, data_array, 20);
 		
 		data_array[0] = 0x43;
 		data_array[1] = 5;  			//fifth chunk of config data
-		for (uint8_t i = 0; i < 6; i++) {
+		for (uint8_t i = 0; i < 6; i++) 
         data_array[2+i] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[i][0]); //kg_weight
-        }		
+        		
 		data_array[8] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[0][1] & 0xff); // adc_values
         data_array[9] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[0][1] >> 8);
 		data_array[10] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[1][1] & 0xff); // adc_values
@@ -761,7 +768,7 @@ static void ble_config_set(uint8_t *p_data)
 	  ui_vars->ui8_field_weakening_enabled = p_data[10];
 	  ui_vars->ui8_field_weakening_current = p_data[11];
 	  ui_vars->ui8_cadence_RPM_limit = p_data[12];	
-  	  ui_vars->ui8_torque_boost_factor = p_data[13];
+  	  ui_vars->ui8_soft_start_feature_enabled = p_data[13];
 	  ui_vars->ui8_battery_soc_enable = p_data[14];
 	}
 	
@@ -769,9 +776,11 @@ static void ble_config_set(uint8_t *p_data)
   
       for (int i = 0; i < 5; i++)
       ui_vars->ui8_target_peak_battery_power_div25[i] = p_data[2 + i];
-      for (int i = 0; i < 5; i++)
+      
+	  for (int i = 0; i < 5; i++)
       ui_vars->ui8_motor_acceleration_level[i] = p_data[7 + i];
-      for (int i = 0; i < 5; i++)
+      
+	  for (int i = 0; i < 5; i++)
       ui_vars->ui8_walk_assist_level_factor[i] = p_data[12 + i];	  
 	  
 	}	
@@ -780,8 +789,12 @@ static void ble_config_set(uint8_t *p_data)
 		
       for (int i = 0; i < 5; i++)
       ui_vars->ui8_assist_level_power_assist[i] = p_data[2 + i];
-	  ui_vars->ui32_wh_x10_100_percent = ((((uint32_t) p_data[9]) << 16) + (((uint32_t) p_data[8]) << 8) + ((uint32_t) p_data[7]));
-	  ui_vars->ui32_wh_x10_offset = ((((uint32_t) p_data[12]) << 16) + (((uint32_t) p_data[11]) << 8) + ((uint32_t) p_data[10]));
+      
+	  for (int i = 0; i < 5; i++)
+      ui_vars->ui8_assist_level_torque_assist[i] = p_data[7 + i];	  
+	  
+	  ui_vars->ui32_wh_x10_100_percent = ((((uint32_t) p_data[14]) << 16) + (((uint32_t) p_data[13]) << 8) + ((uint32_t) p_data[12]));
+	  ui_vars->ui32_wh_x10_offset = ((((uint32_t) p_data[12]) << 17) + (((uint32_t) p_data[16]) << 8) + ((uint32_t) p_data[15]));
  
 	}
 		if(p_data[1] == 0x05){

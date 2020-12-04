@@ -15,8 +15,8 @@
 
 // For compatible changes, just add new fields at the end of the table (they will be inited to 0xff for old eeprom images).  For incompatible
 // changes bump up EEPROM_MIN_COMPAT_VERSION and the user's EEPROM settings will be discarded.
-#define EEPROM_MIN_COMPAT_VERSION 0x37
-#define EEPROM_VERSION 0x37
+#define EEPROM_MIN_COMPAT_VERSION 0x38
+#define EEPROM_VERSION 0x38
 
 typedef struct {
   graph_auto_max_min_t auto_max_min;
@@ -61,6 +61,7 @@ typedef struct eeprom_data {
 	uint8_t  ui8_walk_assist_feature_enabled;
 	uint8_t  ui8_walk_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t	 ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
+	uint8_t	 ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];	
 	uint8_t  ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
 	uint8_t  ui8_motor_acceleration_level[ASSIST_LEVEL_NUMBER];	
 	uint8_t ui8_riding_mode_ui;
@@ -92,7 +93,7 @@ typedef struct eeprom_data {
   uint8_t ui8_field_weakening_enabled;
   uint8_t ui8_field_weakening_current;
   uint8_t ui8_cadence_RPM_limit;
-  uint8_t ui8_torque_boost_factor;
+  uint8_t ui8_soft_start_feature_enabled;
 
 #ifndef SW102
 	Graph_eeprom graph_eeprom[VARS_SIZE];
@@ -179,6 +180,11 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_3                          12
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_4                          18
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_5                          32
+#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_1                         30 
+#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_2                         50
+#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_3                         70
+#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_4                         90
+#define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_5                         110
 #define DEFAULT_VALUE_WALK_ASSIST_FEATURE_ENABLED                   1
 #define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_1                    17
 #define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_2                    23
@@ -190,11 +196,11 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_PEAK_POWER_LEVEL_3                    		30
 #define DEFAULT_VALUE_PEAK_POWER_LEVEL_4                    		30
 #define DEFAULT_VALUE_PEAK_POWER_LEVEL_5                    		30
-#define DEFAULT_VALUE_ACCELERATION_LEVEL_1                    		0
-#define DEFAULT_VALUE_ACCELERATION_LEVEL_2                    		0
-#define DEFAULT_VALUE_ACCELERATION_LEVEL_3                    		0
-#define DEFAULT_VALUE_ACCELERATION_LEVEL_4                    		0
-#define DEFAULT_VALUE_ACCELERATION_LEVEL_5                    		0
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_1                    0
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_2                    5
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_3                    10
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_4                    15
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_5                    20
 #define DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT             60 // 75 degrees celsius
 #define DEFAULT_VALUE_MOTOR_TEMPERATURE_MAX_VALUE_LIMIT             85 // 85 degrees celsius
 #define DEFAULT_VALUE_BATTERY_VOLTAGE_RESET_WH_COUNTER_X10          580 // 52v battery, 58.4 volts at fully charged
@@ -234,7 +240,7 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_FIELD_WEAKENING_ENABLED						0
 #define DEFAULT_VALUE_FIELD_WEAKENING_CURRENT						20
 #define DEFAULT_VALUE_RPM_LIMIT										30
-#define DEFAULT_VALUE_BOOST_FACTOR									1
+#define DEFAULT_VALUE_SOFT_START_FEATURE							0
 
 #define BICYCLE_1
 //#define BICYCLE_2

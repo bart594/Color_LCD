@@ -29,7 +29,7 @@ static Field batterySOCMenus[] =
 static Field motorMenus[] = {
         FIELD_EDITABLE_ENUM(_S("Motor voltage", "Motor volt"), &ui_vars.ui8_motor_type, "48V", "36V"),
 		FIELD_EDITABLE_ENUM(_S("Field weakening", "Field wk"), &ui_vars.ui8_field_weakening_enabled, "disable", "enable"),
-		FIELD_EDITABLE_UINT(_S("FW current boost", "FW current"), &ui_vars.ui8_field_weakening_current, "", 0, 25, .inc_step = 5), 		
+		FIELD_EDITABLE_UINT(_S("FW current", "FW current"), &ui_vars.ui8_field_weakening_current, "", 0, 25, .inc_step = 5), 		
         FIELD_EDITABLE_UINT(_S("Motor acceleration", "Mot acc"), &ui_vars.ui8_motor_acceleration, "", 0, 50),
         FIELD_EDITABLE_UINT(_S("Z-cadence assist thd", "Z-cad thd"), &ui_vars.ui8_motor_assistance_startup_without_pedal_rotation, "", 0, 100),
 		FIELD_END };
@@ -120,7 +120,7 @@ static Field variousMenus[] = {
 		//FIELD_EDITABLE_ENUM(_S("Cadence Mode", "Cad mode"), &ui_vars.ui8_cadence_sensor_mode, "Standard", "Advanced", "CADCSMode"),
 		//FIELD_EDITABLE_ENUM(_S("Cadence calib", "Cad calib"), &ui_vars.ui8_cadence_sensor_calib_enabled, "disable", "enable"),
 		//FIELD_EDITABLE_UINT("Cadence Pulse", &ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10, "",200,800),
-		FIELD_EDITABLE_UINT("Boost factor", &ui_vars.ui8_torque_boost_factor, "", 1, 10),
+		FIELD_EDITABLE_ENUM("Soft_start", &ui_vars.ui8_soft_start_feature_enabled, "disable", "enable"),
 		FIELD_EDITABLE_UINT("Cadence limit", &ui_vars.ui8_cadence_RPM_limit, "RPM", 0, 120),
 	    FIELD_EDITABLE_UINT("Odometer", &ui_vars.ui32_odometer_x10, "km", 0, UINT32_MAX, .div_digits = 1, .inc_step = 100, .onSetEditable = onSetConfigurationWheelOdometer),
 		FIELD_END };

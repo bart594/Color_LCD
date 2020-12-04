@@ -644,7 +644,7 @@ void nav_distance(void)
   PowerStripOnDirtyClean(power_strip_segment_draw_number);
   
 
-  if(ui32_nav_turn_dist > 0 && ui32_nav_turn_dist < 50){
+  if(ui32_nav_turn_dist > 0 && ui32_nav_turn_dist < 30 && ui32_nav_t_turn_dist > 50){
 	nav_info_timeout = 10;
   }
  
