@@ -32,7 +32,7 @@ const eeprom_data_t m_eeprom_data_defaults = {
 		.ui8_target_max_battery_power_div25 = DEFAULT_VALUE_TARGET_MAX_BATTERY_POWER_DIV25,
 		.ui16_battery_low_voltage_cut_off_x10 = DEFAULT_VALUE_BATTERY_LOW_VOLTAGE_CUT_OFF_X10,
 		.ui8_motor_type = DEFAULT_VALUE_MOTOR_TYPE,
-		.ui8_motor_assistance_startup_without_pedal_rotation = DEFAULT_VALUE_MOTOR_ASSISTANCE_WITHOUT_PEDAL_ROTATION,
+		.ui8_assist_without_pedal_rotation_threshold = DEFAULT_VALUE_MOTOR_ASSISTANCE_WITHOUT_PEDAL_ROTATION,
 		.ui8_number_of_assist_levels = DEFAULT_VALUE_NUMBER_OF_ASSIST_LEVELS,
 		.ui8_motor_temperature_min_value_to_limit =
 		DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT,
@@ -132,9 +132,10 @@ const eeprom_data_t m_eeprom_data_defaults = {
 	.ui8_pedal_torque_per_10_bit_ADC_step_x100 = DEFAULT_VALUE_PEDAL_TORQUE_CALIBRATION,
 	.ui8_cruise_function_target_speed_kph = DEFAULT_VALUE_CRUISE_FUNCTION_TARGET_SPEED_KPH,
 	.ui8_field_weakening_enabled = DEFAULT_VALUE_FIELD_WEAKENING_ENABLED,
-	.ui8_field_weakening_current = DEFAULT_VALUE_FIELD_WEAKENING_CURRENT,		
-	.ui8_cadence_RPM_limit = DEFAULT_VALUE_RPM_LIMIT,	
+	.ui8_field_weakening_current_adc = DEFAULT_VALUE_FIELD_WEAKENING_CURRENT,		
+	.ui8_hybrid_mode_enabled = DEFAULT_VALUE_HYBRID_MODE,	
 	.ui8_soft_start_feature_enabled = DEFAULT_VALUE_SOFT_START_FEATURE,
+	.ui8_motor_current_min_adc = DEFAULT_VALUE_MOTOR_CURRENT_MIN_ADC,
 	
 #ifndef SW102
     // enable automatic graph max min for every variable
@@ -270,8 +271,8 @@ void eeprom_init_variables(void) {
 	ui_vars->ui16_battery_low_voltage_cut_off_x10 =
 			m_eeprom_data.ui16_battery_low_voltage_cut_off_x10;
 	ui_vars->ui8_motor_type = m_eeprom_data.ui8_motor_type;
-	ui_vars->ui8_motor_assistance_startup_without_pedal_rotation =
-			m_eeprom_data.ui8_motor_assistance_startup_without_pedal_rotation;
+	ui_vars->ui8_assist_without_pedal_rotation_threshold =
+			m_eeprom_data.ui8_assist_without_pedal_rotation_threshold;
 	ui_vars->ui8_number_of_assist_levels =
 			m_eeprom_data.ui8_number_of_assist_levels;
 	ui_vars->ui8_motor_temperature_min_value_to_limit =
@@ -302,9 +303,10 @@ void eeprom_init_variables(void) {
 	ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100 = m_eeprom_data.ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	ui_vars->ui8_cruise_function_target_speed_kph = m_eeprom_data.ui8_cruise_function_target_speed_kph;			
 	ui_vars->ui8_field_weakening_enabled = m_eeprom_data.ui8_field_weakening_enabled;
-	ui_vars->ui8_field_weakening_current = m_eeprom_data.ui8_field_weakening_current;
-	ui_vars->ui8_cadence_RPM_limit = m_eeprom_data.ui8_cadence_RPM_limit;	
+	ui_vars->ui8_field_weakening_current_adc = m_eeprom_data.ui8_field_weakening_current_adc;
+	ui_vars->ui8_hybrid_mode_enabled = m_eeprom_data.ui8_hybrid_mode_enabled;	
 	ui_vars->ui8_soft_start_feature_enabled = m_eeprom_data.ui8_soft_start_feature_enabled;	
+	ui_vars->ui8_motor_current_min_adc =  m_eeprom_data.ui8_motor_current_min_adc;	
 	
 	COPY_ARRAY(ui_vars, &m_eeprom_data, ui8_walk_assist_level_factor);
 	COPY_ARRAY(ui_vars, &m_eeprom_data, field_selectors);
@@ -497,8 +499,8 @@ void eeprom_write_variables(void) {
 	m_eeprom_data.ui16_battery_low_voltage_cut_off_x10 =
 			ui_vars->ui16_battery_low_voltage_cut_off_x10;
 	m_eeprom_data.ui8_motor_type = ui_vars->ui8_motor_type;
-	m_eeprom_data.ui8_motor_assistance_startup_without_pedal_rotation =
-			ui_vars->ui8_motor_assistance_startup_without_pedal_rotation;
+	m_eeprom_data.ui8_assist_without_pedal_rotation_threshold =
+			ui_vars->ui8_assist_without_pedal_rotation_threshold;
 	m_eeprom_data.ui8_number_of_assist_levels =
 			ui_vars->ui8_number_of_assist_levels;
 	m_eeprom_data.ui8_motor_temperature_min_value_to_limit =
@@ -537,10 +539,11 @@ void eeprom_write_variables(void) {
 	m_eeprom_data.ui8_cruise_function_target_speed_kph =
 			ui_vars->ui8_cruise_function_target_speed_kph;	
 	m_eeprom_data.ui8_field_weakening_enabled = ui_vars->ui8_field_weakening_enabled;
-	m_eeprom_data.ui8_field_weakening_current = ui_vars->ui8_field_weakening_current;	
-	m_eeprom_data.ui8_cadence_RPM_limit = ui_vars->ui8_cadence_RPM_limit;
+	m_eeprom_data.ui8_field_weakening_current_adc = ui_vars->ui8_field_weakening_current_adc;	
+	m_eeprom_data.ui8_hybrid_mode_enabled = ui_vars->ui8_hybrid_mode_enabled;
 	m_eeprom_data.ui8_soft_start_feature_enabled = ui_vars->ui8_soft_start_feature_enabled;
-	
+    m_eeprom_data.ui8_motor_current_min_adc = ui_vars->ui8_motor_current_min_adc;
+		
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_walk_assist_level_factor);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_power_assist);
 	COPY_ARRAY(&m_eeprom_data, ui_vars, ui8_assist_level_torque_assist);	

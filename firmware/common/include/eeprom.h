@@ -41,7 +41,7 @@ typedef struct eeprom_data {
 	uint8_t ui8_ramp_up_amps_per_second_x10;
 	uint16_t ui16_battery_low_voltage_cut_off_x10;
 	uint8_t ui8_motor_type;
-	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
+	uint8_t ui8_assist_without_pedal_rotation_threshold;
 	uint16_t ui16_assist_level_factor[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_number_of_assist_levels;
 	uint8_t ui8_startup_motor_power_boost_feature_enabled;
@@ -71,7 +71,7 @@ typedef struct eeprom_data {
 	uint8_t ui8_motor_acceleration;
 	uint8_t ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	uint8_t ui8_cruise_function_target_speed_kph;
-
+	
 	uint8_t ui8_battery_soc_increment_decrement;
 	uint8_t ui8_buttons_up_down_invert;
     uint8_t ui8_torque_sensor_calibration_feature_enabled;
@@ -91,8 +91,8 @@ typedef struct eeprom_data {
   uint8_t ui8_street_mode_power_limit_div25;
   uint8_t ui8_street_mode_throttle_enabled;
   uint8_t ui8_field_weakening_enabled;
-  uint8_t ui8_field_weakening_current;
-  uint8_t ui8_cadence_RPM_limit;
+  uint8_t ui8_field_weakening_current_adc;
+  uint8_t ui8_hybrid_mode_enabled;
   uint8_t ui8_soft_start_feature_enabled;
 
 #ifndef SW102
@@ -239,8 +239,9 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_OPTIONAL_ADC_FUNCTION 						0
 #define DEFAULT_VALUE_FIELD_WEAKENING_ENABLED						0
 #define DEFAULT_VALUE_FIELD_WEAKENING_CURRENT						20
-#define DEFAULT_VALUE_RPM_LIMIT										30
+#define DEFAULT_VALUE_HYBRID_MODE								    0
 #define DEFAULT_VALUE_SOFT_START_FEATURE							0
+#define DEFAULT_VALUE_MOTOR_CURRENT_MIN_ADC							0
 
 #define BICYCLE_1
 //#define BICYCLE_2

@@ -613,7 +613,7 @@ void ble_uart_send(rt_vars_t *rt_vars) {
         data_array[8] = rt_vars->ui8_torque_sensor_calibration_feature_enabled;
         data_array[9] =  rt_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100;
         data_array[10] =  rt_vars->ui8_optional_ADC_function;
-        data_array[11] =  rt_vars->ui8_motor_assistance_startup_without_pedal_rotation;
+        data_array[11] =  rt_vars->ui8_assist_without_pedal_rotation_threshold;
         data_array[12] = rt_vars->ui8_lights_configuration;
         data_array[13] = (uint8_t) (rt_vars->ui16_wheel_perimeter & 0xff);
         data_array[14] = (uint8_t) (rt_vars->ui16_wheel_perimeter >> 8);
@@ -635,11 +635,12 @@ void ble_uart_send(rt_vars_t *rt_vars) {
         data_array[8] = rt_vars->ui8_street_mode_power_limit_div25;
         data_array[9] = rt_vars->ui8_street_mode_speed_limit;
 		data_array[10] = rt_vars->ui8_field_weakening_enabled;
-		data_array[11] = rt_vars->ui8_field_weakening_current;
-		data_array[12] = rt_vars->ui8_cadence_RPM_limit;
+		data_array[11] = rt_vars->ui8_field_weakening_current_adc;
+		data_array[12] = rt_vars->ui8_hybrid_mode_enabled;
 		data_array[13] = rt_vars->ui8_soft_start_feature_enabled;
         data_array[14] = rt_vars->ui8_battery_soc_enable;		
-
+		data_array[14] = rt_vars->ui8_motor_current_min_adc;
+		
         ble_nus_string_send(&m_nus, data_array, 20);
 		
 		data_array[0] = 0x43;
@@ -748,7 +749,7 @@ static void ble_config_set(uint8_t *p_data)
       ui_vars->ui8_torque_sensor_calibration_feature_enabled = p_data[8];
       ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100 = p_data[9]; 
       ui_vars->ui8_optional_ADC_function = p_data[10]; 
-      ui_vars->ui8_motor_assistance_startup_without_pedal_rotation = p_data[11]; 
+      ui_vars->ui8_assist_without_pedal_rotation_threshold = p_data[11]; 
       ui_vars->ui8_lights_configuration = p_data[12]; 
       ui_vars->ui16_wheel_perimeter = (((uint16_t) p_data[14]) << 8) + ((uint16_t) p_data[13]); 
       ui_vars->ui8_walk_assist_feature_enabled = p_data[15]; 
@@ -766,10 +767,11 @@ static void ble_config_set(uint8_t *p_data)
       ui_vars->ui8_street_mode_power_limit_div25 = p_data[8]; 
       ui_vars->ui8_street_mode_speed_limit = p_data[9]; 
 	  ui_vars->ui8_field_weakening_enabled = p_data[10];
-	  ui_vars->ui8_field_weakening_current = p_data[11];
-	  ui_vars->ui8_cadence_RPM_limit = p_data[12];	
+	  ui_vars->ui8_field_weakening_current_adc = p_data[11];
+	  ui_vars->ui8_hybrid_mode_enabled = p_data[12];	
   	  ui_vars->ui8_soft_start_feature_enabled = p_data[13];
 	  ui_vars->ui8_battery_soc_enable = p_data[14];
+	  ui_vars->ui8_motor_current_min_adc = p_data[15]; 
 	}
 	
 		if(p_data[1] == 0x03){

@@ -98,7 +98,7 @@ typedef struct rt_vars_struct {
 	uint16_t ui16_battery_voltage_reset_wh_counter_x10;
 	uint16_t ui16_battery_pack_resistance_x1000;
 	uint8_t ui8_motor_type;
-	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
+	uint8_t ui8_assist_without_pedal_rotation_threshold;
 	uint8_t	ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
 	uint8_t	ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];	
 	uint8_t ui8_walk_assist_feature_enabled;
@@ -122,7 +122,7 @@ typedef struct rt_vars_struct {
 	uint8_t	ui8_temperature_current_limiting_value;
 	uint8_t ui8_eMTB_assist_level;
 	uint8_t ui8_soft_start_feature_enabled;
-    uint8_t ui8_cadence_RPM_limit;
+    uint8_t ui8_hybrid_mode_enabled;
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_lights;
 	uint8_t ui8_braking;
@@ -138,7 +138,7 @@ typedef struct rt_vars_struct {
 //	uint16_t ui16_street_mode_power_limit;
 	uint8_t ui8_street_mode_throttle_enabled;
 	uint8_t ui8_field_weakening_enabled;
-	uint8_t ui8_field_weakening_current;
+	uint8_t ui8_field_weakening_current_adc;
 	battery_energy_h_km_t battery_energy_h_km;
 	
 	uint32_t ui32_nav_turn_distance;
@@ -146,6 +146,7 @@ typedef struct rt_vars_struct {
 	uint32_t ui32_nav_total_turn_distance;
 	uint8_t ui8_nav_info;
 	uint8_t ui8_nav_info_extra;
+	uint8_t ui8_motor_current_min_adc;
 	
 } rt_vars_t;
 
@@ -215,7 +216,7 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_battery_pack_resistance_x1000;
 	uint16_t ui16_battery_pack_resistance_estimated_x1000;
 	uint8_t ui8_motor_type;
-	uint8_t ui8_motor_assistance_startup_without_pedal_rotation;
+	uint8_t ui8_assist_without_pedal_rotation_threshold;
 	uint8_t	ui8_assist_level_power_assist[ASSIST_LEVEL_NUMBER];
 	uint8_t	ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];
 	uint8_t ui8_walk_assist_feature_enabled;
@@ -247,10 +248,10 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_cruise_function_target_speed_kph;
 	uint8_t ui8_eMTB_assist_level;
 	uint8_t ui8_soft_start_feature_enabled;
-	uint8_t ui8_cadence_RPM_limit;
+	uint8_t ui8_hybrid_mode_enabled;
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_field_weakening_enabled;
-	uint8_t ui8_field_weakening_current;
+	uint8_t ui8_field_weakening_current_adc;
 	
 	uint32_t ui32_nav_turn_distance;
 	uint32_t ui32_nav_total_distance;
@@ -272,7 +273,8 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_street_mode_power_limit;
 	uint8_t ui8_street_mode_throttle_enabled;
 	uint8_t ui8_cadence_sensor_calib_enabled;
-
+;
+	
   uint16_t var_speed_graph_auto_max_min;
   uint16_t var_speed_graph_max_x10;
   uint16_t var_speed_graph_min_x10;

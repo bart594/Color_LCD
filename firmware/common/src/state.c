@@ -182,9 +182,9 @@ void rt_send_tx_package(void) {
 	case 3:
 	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_soft_start_feature_enabled;
 
-	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_cadence_RPM_limit;
+	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_hybrid_mode_enabled;
 
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_field_weakening_current;
+      ui8_usart1_tx_buffer[8] = rt_vars.ui8_field_weakening_current_adc;
 
     break;
 
@@ -192,7 +192,7 @@ void rt_send_tx_package(void) {
 	  
 	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_lights_configuration;
 	  // start without pedal rotation
-	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_motor_assistance_startup_without_pedal_rotation;
+	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_assist_without_pedal_rotation_threshold;
       // motor acceleration
 	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){
       ui8_usart1_tx_buffer[8] = rt_vars.ui8_motor_acceleration;
@@ -227,8 +227,8 @@ void rt_send_tx_package(void) {
     break;
 	 
     case 6:
-      // cadence sensor mode
-      //ui8_usart1_tx_buffer[6] = rt_vars.ui8_cadence_sensor_mode;
+      // motor current min
+      ui8_usart1_tx_buffer[6] = rt_vars.ui8_motor_current_min_adc;
 	  // cadence sensor pulse high percentage
 	  //if (rt_vars.ui8_cadence_sensor_mode == ADVANCED_MODE){
       //uint16_t ui16_temp = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;
@@ -629,7 +629,7 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_number_of_assist_levels = ui_vars.ui8_number_of_assist_levels;
 	rt_vars.ui8_eMTB_assist_level = ui_vars.ui8_eMTB_assist_level;
     rt_vars.ui8_soft_start_feature_enabled = ui_vars.ui8_soft_start_feature_enabled;
-	rt_vars.ui8_cadence_RPM_limit = ui_vars.ui8_cadence_RPM_limit;
+	rt_vars.ui8_hybrid_mode_enabled = ui_vars.ui8_hybrid_mode_enabled;
 	rt_vars.ui8_lights_configuration = ui_vars.ui8_lights_configuration;
 	rt_vars.ui8_motor_acceleration = ui_vars.ui8_motor_acceleration;
 	
@@ -664,8 +664,8 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui16_wheel_perimeter = ui_vars.ui16_wheel_perimeter;
 	rt_vars.ui8_wheel_max_speed = ui_vars.wheel_max_speed_x10 / 10;
 	rt_vars.ui8_motor_type = ui_vars.ui8_motor_type;
-	rt_vars.ui8_motor_assistance_startup_without_pedal_rotation =
-			ui_vars.ui8_motor_assistance_startup_without_pedal_rotation;
+	rt_vars.ui8_assist_without_pedal_rotation_threshold =
+			ui_vars.ui8_assist_without_pedal_rotation_threshold;
 	rt_vars.ui8_motor_temperature_min_value_to_limit =
 			ui_vars.ui8_motor_temperature_min_value_to_limit;
 	rt_vars.ui8_motor_temperature_max_value_to_limit =
@@ -685,8 +685,9 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_cruise_function_target_speed_kph = 	ui_vars.ui8_cruise_function_target_speed_kph;
 	rt_vars.ui8_torque_sensor_calibration_feature_enabled = ui_vars.ui8_torque_sensor_calibration_feature_enabled;
 	rt_vars.ui8_field_weakening_enabled = ui_vars.ui8_field_weakening_enabled;
-	rt_vars.ui8_field_weakening_current = ui_vars.ui8_field_weakening_current;
+	rt_vars.ui8_field_weakening_current_adc = ui_vars.ui8_field_weakening_current_adc;
 	rt_vars.ui8_battery_soc_enable = ui_vars.ui8_battery_soc_enable;
+	rt_vars.ui8_motor_current_min_adc = ui_vars.ui8_motor_current_min_adc;
 	
 }
 
