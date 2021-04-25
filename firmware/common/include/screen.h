@@ -536,6 +536,8 @@ void fieldPrintf(Field *field, const char *fmt, ...);
 /// Update this readonly editable with a string value.  Important: the original field target must be pointing to a WRITABLE array, not a const string.
 void updateReadOnlyStr(Field *field, const char *str);
 
+void updateTimeStr(uint8_t hours, uint8_t minutes, Field *field);
+
 /** These are render callback functions, you should normally never need to call them, but they can be useful if you
  * are using your own custom render callback.
  */
@@ -547,6 +549,8 @@ void rt_graph_process(void);
 int32_t convertUnits(int32_t val, ConvertUnitsType type);
 
 void update_battery_power_usage_label(void);
+
+void updateReadOnlyLabelStr(Field *field, const char *str);
 
 extern const UG_FONT *editable_label_font;
 extern const UG_FONT *editable_value_font;

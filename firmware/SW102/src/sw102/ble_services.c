@@ -49,9 +49,10 @@
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
 
 #define NO_PACKET					    0
-#define PACKET_REGULAR					1
+#define PACKET_STATUS					1
 #define PACKET_CONFIG					2
-#define SAVE_CONFIG						3
+#define PACKET_MOTOR					3
+
 
 #ifdef BLE_SERIAL
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
@@ -62,7 +63,7 @@ nrf_ble_gatt_t							m_gatt;
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 
-static uint8_t 							ble_command = PACKET_REGULAR;
+static uint8_t 							ble_command = PACKET_STATUS;
 volatile bool 							ble_config_update = false;
 
 static ble_uuid_t                       m_adv_uuids[] = {
@@ -110,8 +111,13 @@ static void gap_params_init(void)
 {
 	
 	if(p_data[0] == 'N'){ble_command = NO_PACKET;} 
-	if(p_data[0] == 'R'){ble_command = PACKET_REGULAR;}
+	if(p_data[0] == 'R'){ble_command = PACKET_STATUS;}
 	if(p_data[0] == 'C'){ble_command = PACKET_CONFIG;}
+	if(p_data[0] == 'M'){
+	ble_command = PACKET_MOTOR;
+	ble_motor_test(p_data);
+	}
+	
 	if(p_data[0] == 'S'){
 	 
 	 ble_config_set(p_data);
@@ -555,12 +561,12 @@ void ble_uart_send(rt_vars_t *rt_vars) {
  
  switch (ble_command)
       {
-        case 0:
+        case NO_PACKET:
          
         ble_nus_string_send(&m_nus, data_arr, 10);
 		break;
 		
-		case 1:
+		case PACKET_STATUS:
 		data_array[0] = 0x52;  // "R" 
 		data_array[1] = rt_vars->ui8_riding_mode;
 		data_array[2] = rt_vars->ui8_assist_level;
@@ -579,6 +585,7 @@ void ble_uart_send(rt_vars_t *rt_vars) {
 		data_array[14] = (uint8_t) (ui16_temp & 0xff);
 		data_array[15] = (uint8_t) (ui16_temp >> 8);
 		data_array[16] = rt_vars->ui8_street_mode_feature_enabled;
+		
 		ble_nus_string_send(&m_nus, data_array, 17);
 		
 		data_array[0] = 0x44;  // "D" 
@@ -597,11 +604,13 @@ void ble_uart_send(rt_vars_t *rt_vars) {
 		data_array[12] = (uint8_t) (ui16_temp_wh_km >> 8);		
 		data_array[13] = (uint8_t) (rt_vars->ui16_pedal_weight & 0xff);
 		data_array[14] = (uint8_t) (rt_vars->ui16_pedal_weight >> 8);
+		
 		ble_nus_string_send(&m_nus, data_array, 15);
 
         break;
 
-		case 2:
+		case PACKET_CONFIG:
+
 		data_array[0] = 0x43; 		// C = config
 		data_array[1] = 1;  			//first chunk of config data
         data_array[2] = rt_vars->ui8_motor_type;
@@ -622,6 +631,7 @@ void ble_uart_send(rt_vars_t *rt_vars) {
         data_array[17] = (uint8_t)(rt_vars->ui16_battery_voltage_reset_wh_counter_x10 >> 8);
         data_array[18] = rt_vars->ui8_battery_max_current;
         data_array[19] = rt_vars->ui8_target_max_battery_power_div25;
+		
 		ble_nus_string_send(&m_nus, data_array, 20);
 		
 		data_array[0] = 0x43;
@@ -639,7 +649,8 @@ void ble_uart_send(rt_vars_t *rt_vars) {
 		data_array[12] = rt_vars->ui8_hybrid_mode_enabled;
 		data_array[13] = rt_vars->ui8_soft_start_feature_enabled;
         data_array[14] = rt_vars->ui8_battery_soc_enable;		
-		data_array[14] = rt_vars->ui8_motor_current_min_adc;
+		data_array[15] = rt_vars->ui8_motor_current_min_adc;
+		data_array[16] = rt_vars->ui8_wheel_max_speed;
 		
         ble_nus_string_send(&m_nus, data_array, 20);
 		
@@ -695,14 +706,61 @@ void ble_uart_send(rt_vars_t *rt_vars) {
 
 		ble_nus_string_send(&m_nus, data_array, 20);
 		
+		data_array[0] = 0x43;
+		data_array[1] = 6;  			//sixth chunk of config data
+		for (uint8_t i = 0; i < 6; i++) 
+        data_array[2+i] = rt_vars->ui8_hall_ref_angles[i];
+		for (uint8_t i = 0; i < 6; i++) 		
+		data_array[8+i] = rt_vars->ui8_hall_counter_offset[i]; 
+
+		ble_nus_string_send(&m_nus, data_array, 20);		
+		
 		//sprintf(data_array, "D1,%d,%d,%d,!",    rt_vars->ui8_duty_cycle, rt_vars->ui16_pedal_torque_x100, rt_vars->ui16_adc_pedal_torque_sensor);
 	    //	ble_nus_string_send(&m_nus, data_array, strlen(data_array));
 
           
         break;
+		
+		case PACKET_MOTOR:
+		
+		//uint16_t ui16_temp;
+		
+		data_array[0] = 0x4D;  // "M" 
+		data_array[1] = rt_vars->ui8_riding_mode;
+	    ui16_temp = rt_vars->ui16_hall_calib_cnt[0];
+        data_array[2] = (uint8_t) (ui16_temp & 0xff);
+        data_array[3] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = rt_vars->ui16_hall_calib_cnt[1];
+        data_array[4] = (uint8_t) (ui16_temp & 0xff);
+        data_array[5] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = rt_vars->ui16_hall_calib_cnt[2];
+        data_array[6] = (uint8_t) (ui16_temp & 0xff);
+        data_array[7] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = rt_vars->ui16_hall_calib_cnt[3];
+        data_array[8] = (uint8_t) (ui16_temp & 0xff);
+        data_array[9] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = rt_vars->ui16_hall_calib_cnt[4];
+        data_array[10] = (uint8_t) (ui16_temp & 0xff);
+        data_array[11] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = rt_vars->ui16_hall_calib_cnt[5];
+        data_array[12] = (uint8_t) (ui16_temp & 0xff);
+        data_array[13] = (uint8_t) (ui16_temp >> 8);
+
+		ble_nus_string_send(&m_nus, data_array, 20);
+		
+		break;
 	  }
 }
 
+static void ble_motor_test(uint8_t *p_data)
+{
+	  ui_vars_t *ui_vars = get_ui_vars();
+
+      ui_vars->ui8_riding_mode = p_data[1];
+	  ui_vars->ui8_calibration_duty_cycle_target = p_data[2];
+	  
+}
+	  
 static void ble_nav_info(uint8_t *p_data)
 {
 
@@ -771,7 +829,8 @@ static void ble_config_set(uint8_t *p_data)
 	  ui_vars->ui8_hybrid_mode_enabled = p_data[12];	
   	  ui_vars->ui8_soft_start_feature_enabled = p_data[13];
 	  ui_vars->ui8_battery_soc_enable = p_data[14];
-	  ui_vars->ui8_motor_current_min_adc = p_data[15]; 
+	  ui_vars->ui8_motor_current_min_adc = p_data[15];
+	  ui_vars->wheel_max_speed_x10 = (uint16_t) (p_data[16] * 10);	  
 	}
 	
 		if(p_data[1] == 0x03){
@@ -796,7 +855,7 @@ static void ble_config_set(uint8_t *p_data)
       ui_vars->ui8_assist_level_torque_assist[i] = p_data[7 + i];	  
 	  
 	  ui_vars->ui32_wh_x10_100_percent = ((((uint32_t) p_data[14]) << 16) + (((uint32_t) p_data[13]) << 8) + ((uint32_t) p_data[12]));
-	  ui_vars->ui32_wh_x10_offset = ((((uint32_t) p_data[12]) << 17) + (((uint32_t) p_data[16]) << 8) + ((uint32_t) p_data[15]));
+	  ui_vars->ui32_wh_x10_offset = ((((uint32_t) p_data[17]) << 16) + (((uint32_t) p_data[16]) << 8) + ((uint32_t) p_data[15]));
  
 	}
 		if(p_data[1] == 0x05){
@@ -812,5 +871,17 @@ static void ble_config_set(uint8_t *p_data)
 	  ui_vars->ui16_torque_sensor_calibration_table[5][1] = (((uint16_t) p_data[19]) << 8) + ((uint16_t) p_data[18]); //adc values
 	}
 	
+		if(p_data[1] == 0x06){
+
+	  for (uint8_t i = 0; i < 6; i++) 
+      ui_vars->ui8_hall_ref_angles[i] = p_data[2+ i]; 
+	  
+  	  for (uint8_t i = 0; i < 6; i++) 
+      ui_vars->ui8_hall_counter_offset[i] = p_data[8+ i];
+	}
+	
 	ble_config_update = false;
+	
+	if (g_motor_init_state == MOTOR_INIT_READY)
+    g_motor_init_state = MOTOR_UPDATE_CONFIG;
  }

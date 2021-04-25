@@ -15,8 +15,8 @@
 
 // For compatible changes, just add new fields at the end of the table (they will be inited to 0xff for old eeprom images).  For incompatible
 // changes bump up EEPROM_MIN_COMPAT_VERSION and the user's EEPROM settings will be discarded.
-#define EEPROM_MIN_COMPAT_VERSION 0x38
-#define EEPROM_VERSION 0x38
+#define EEPROM_MIN_COMPAT_VERSION 0x40
+#define EEPROM_VERSION 0x40
 
 typedef struct {
   graph_auto_max_min_t auto_max_min;
@@ -77,6 +77,8 @@ typedef struct eeprom_data {
     uint8_t ui8_torque_sensor_calibration_feature_enabled;
     uint8_t ui8_torque_sensor_calibration_pedal_ground;
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
+	uint8_t ui8_hall_ref_angles[6];
+	uint8_t ui8_hall_counter_offset[6];
 
 	uint8_t field_selectors[NUM_CUSTOMIZABLE_FIELDS]; // this array is opaque to the app, but the screen layer uses it to store which field is being displayed (it is stored to EEPROM)
 	uint8_t graphs_field_selectors[3]; // 3 screen main pages
@@ -96,13 +98,13 @@ typedef struct eeprom_data {
   uint8_t ui8_soft_start_feature_enabled;
 
 #ifndef SW102
-	Graph_eeprom graph_eeprom[VARS_SIZE];
+  Graph_eeprom graph_eeprom[VARS_SIZE];
   uint8_t tripDistanceField_x_axis_scale_config;
-	field_threshold_t wheelSpeedField_auto_thresholds;
-	int32_t wheelSpeedField_config_error_threshold;
-	int32_t wheelSpeedField_config_warn_threshold;
-	uint8_t wheelSpeedField_x_axis_scale_config;
-	field_threshold_t cadenceField_auto_thresholds;
+  field_threshold_t wheelSpeedField_auto_thresholds;
+  int32_t wheelSpeedField_config_error_threshold;
+  int32_t wheelSpeedField_config_warn_threshold;
+  uint8_t wheelSpeedField_x_axis_scale_config;
+  field_threshold_t cadenceField_auto_thresholds;
   int32_t cadenceField_config_error_threshold;
   int32_t cadenceField_config_warn_threshold;
   uint8_t cadenceField_x_axis_scale_config;
@@ -152,6 +154,16 @@ typedef struct eeprom_data {
   uint8_t motorFOCField_x_axis_scale_config;
 #endif
 
+  uint32_t ui32_trip_distance_x1000;
+  uint32_t ui32_trip_time;
+  uint16_t ui16_trip_max_speed_x10;
+  uint16_t ui16_trip_avg_speed_x10;
+  uint16_t ui16_battery_current_avg;
+  uint16_t ui16_battery_power_avg;
+  uint16_t ui16_pedal_power_avg; 
+  uint16_t ui16_pedal_cadence_avg;	
+  uint16_t ui16_battery_energy_h_km_avg_x10;
+  
 // FIXME align to 32 bit value by end of structure and pack other fields
 } eeprom_data_t;
 
@@ -175,6 +187,7 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_BATTERY_LOW_VOLTAGE_CUT_OFF_X10               440 // 52v battery, LVC = 42.0 (3.0 * 14)
 #define DEFAULT_VALUE_MOTOR_TYPE                                    0 // ui8_motor_type = 0 = 48V
 #define DEFAULT_VALUE_MOTOR_ASSISTANCE_WITHOUT_PEDAL_ROTATION       0 // 0 to keep this feature disable
+#define DEFAULT_VALUE_WALK_ASSIST_FEATURE_ENABLED                   1
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_1                          4 // 0.4
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_2                          8
 #define DEFAULT_VALUE_ASSIST_LEVEL_POWER_3                          12
@@ -185,7 +198,6 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_3                         70
 #define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_4                         90
 #define DEFAULT_VALUE_ASSIST_LEVEL_TORQUE_5                         110
-#define DEFAULT_VALUE_WALK_ASSIST_FEATURE_ENABLED                   1
 #define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_1                    17
 #define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_2                    23
 #define DEFAULT_VALUE_WALK_ASSIST_LEVEL_FACTOR_3                    30
@@ -196,12 +208,14 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_PEAK_POWER_LEVEL_3                    		30
 #define DEFAULT_VALUE_PEAK_POWER_LEVEL_4                    		30
 #define DEFAULT_VALUE_PEAK_POWER_LEVEL_5                    		30
-#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_1                    0
-#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_2                    5
-#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_3                    10
-#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_4                    15
-#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_5                    20
-#define DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT             60 // 75 degrees celsius
+// default values motor acceleration
+#define DEFAULT_VALUE_MOTOR_ACCELERATION                            20
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_1                    5
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_2                    10
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_3                    20
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_4                    30
+#define DEFAULT_VALUE_MOTOR_ACCELERATION_LEVEL_5                    35
+#define DEFAULT_VALUE_MOTOR_TEMPERATURE_MIN_VALUE_LIMIT             55 // 75 degrees celsius
 #define DEFAULT_VALUE_MOTOR_TEMPERATURE_MAX_VALUE_LIMIT             85 // 85 degrees celsius
 #define DEFAULT_VALUE_BATTERY_VOLTAGE_RESET_WH_COUNTER_X10          580 // 52v battery, 58.4 volts at fully charged
 #define DEFAULT_VALUE_LCD_POWER_OFF_TIME                            60 // 60 minutes, each unit 1 minute
@@ -227,8 +241,6 @@ void eeprom_init_defaults(void);
 #define DEFAULT_STREET_MODE_THROTTLE_ENABLE                         0 // disabled
 // default values for riding mode
 #define DEFAULT_VALUE_RIDING_MODE                 					1
-// default values motor acceleration
-#define DEFAULT_VALUE_MOTOR_ACCELERATION                            0
 // default value pedal torque conversion
 #define DEFAULT_VALUE_PEDAL_TORQUE_CALIBRATION         				67
 // default values for emtb level
@@ -238,10 +250,22 @@ void eeprom_init_defaults(void);
 // default value optional ADC function
 #define DEFAULT_VALUE_OPTIONAL_ADC_FUNCTION 						0
 #define DEFAULT_VALUE_FIELD_WEAKENING_ENABLED						0
-#define DEFAULT_VALUE_FIELD_WEAKENING_CURRENT						20
+#define DEFAULT_VALUE_FIELD_WEAKENING_CURRENT						10
 #define DEFAULT_VALUE_HYBRID_MODE								    0
 #define DEFAULT_VALUE_SOFT_START_FEATURE							0
 #define DEFAULT_VALUE_MOTOR_CURRENT_MIN_ADC							0
+#define DEFAULT_VALUE_TRIP_STATS                                 	0
+
+#define DEFAULT_VALUE_HALL_COUNTER_OFFSET_UP						44
+#define DEFAULT_VALUE_HALL_COUNTER_OFFSET_DOWN						23
+
+#define MOTOR_ROTOR_OFFSET_ANGLE  									(uint8_t)4
+#define DEFAULT_VALUE_PHASE_ROTOR_ANGLE_30  						(uint8_t)((uint8_t)21  + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define DEFAULT_VALUE_PHASE_ROTOR_ANGLE_90  						(uint8_t)((uint8_t)64  + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define DEFAULT_VALUE_PHASE_ROTOR_ANGLE_150 						(uint8_t)((uint8_t)107 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define DEFAULT_VALUE_PHASE_ROTOR_ANGLE_210 						(uint8_t)((uint8_t)149 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define DEFAULT_VALUE_PHASE_ROTOR_ANGLE_270 						(uint8_t)((uint8_t)192 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define DEFAULT_VALUE_PHASE_ROTOR_ANGLE_330 						(uint8_t)((uint8_t)235 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
 
 #define BICYCLE_1
 //#define BICYCLE_2
@@ -265,6 +289,7 @@ void eeprom_init_defaults(void);
 //#define DEFAULT_TORQUE_SENSOR_CALIBRATION_WEIGHT_8             100
 //#define DEFAULT_TORQUE_SENSOR_CALIBRATION_ADC_8                291
 #endif
+
 
 // *************************************************************************** //
 

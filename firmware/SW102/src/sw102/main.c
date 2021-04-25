@@ -295,7 +295,7 @@ static void gui_timer_timeout(void *p_context)
     ui32_seconds_since_startup++;
   
   if((gui_ticks % (30 / MSEC_PER_TICK) == 0) && // every 30ms
-      m_rt_processing_stop == false)
+    m_rt_processing_stop == false)
     uart_data_clock();
 }
 

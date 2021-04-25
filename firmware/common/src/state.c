@@ -22,7 +22,9 @@
 #include "adc.h"
 #include "timer.h"
 #include <stdlib.h>
+#ifdef SW102
 #include "ble_services.h"
+#endif
 
 static uint8_t ui8_m_usart1_received_first_package = 0;
 uint8_t ui8_g_battery_soc;
@@ -30,7 +32,7 @@ volatile uint8_t ui8_g_motorVariablesStabilized = 0;
 
 
 volatile motor_init_state_t g_motor_init_state = MOTOR_INIT_NOT_READY;
-static uint8_t ui8_packet_type = UART_PACKET_REGULAR;
+volatile uint8_t ui8_packet_type = UART_PACKET_REGULAR;
 
 
 rt_vars_t rt_vars;
@@ -121,6 +123,13 @@ void rt_send_tx_package(void) {
               
         break;
 		
+		case MOTOR_CALIBRATION_MODE:
+
+          ui8_usart1_tx_buffer[4] = rt_vars.ui8_calibration_duty_cycle_target;
+              
+        break;
+		
+		
 		default:
         
           ui8_usart1_tx_buffer[4] = 0;
@@ -129,118 +138,55 @@ void rt_send_tx_package(void) {
       }
   	  
 
-      ui8_usart1_tx_buffer[5] = rt_vars.ui8_lights | (rt_vars.ui8_torque_sensor_calibration_feature_enabled << 1) | (rt_vars.ui8_field_weakening_enabled << 2);
+      ui8_usart1_tx_buffer[5] = rt_vars.ui8_lights | (rt_vars.ui8_torque_sensor_calibration_feature_enabled << 1) | (rt_vars.ui8_field_weakening_enabled << 2) | (rt_vars.ui8_hybrid_mode_enabled << 3) | (rt_vars.ui8_soft_start_feature_enabled << 4);
 
 	if(ui8_packet_type == UART_PACKET_REGULAR){	  
  
-	switch(ui8_message_id)
-  {
-    case 0:
-      // battery low voltage cut-off
-      ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_battery_low_voltage_cut_off_x10 & 0xff);
-      ui8_usart1_tx_buffer[7] = (uint8_t) (rt_vars.ui16_battery_low_voltage_cut_off_x10 >> 8);
-	  
 	  // wheel max speed
-          if (rt_vars.ui8_street_mode_feature_enabled)
-          {
-            ui8_usart1_tx_buffer[8] = rt_vars.ui8_street_mode_speed_limit;
-          }
-          else
-          {
-            ui8_usart1_tx_buffer[8] = rt_vars.ui8_wheel_max_speed;
-          }
-    
-	break;
+     if (rt_vars.ui8_street_mode_feature_enabled)
+     {
+      ui8_usart1_tx_buffer[6] = rt_vars.ui8_street_mode_speed_limit;
+     }
+     else
+     {
+      ui8_usart1_tx_buffer[6] = rt_vars.ui8_wheel_max_speed;
+     }
 
-    case 1:
-      // wheel perimeter
-     ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_wheel_perimeter & 0xff);
-     ui8_usart1_tx_buffer[7] = (uint8_t) (rt_vars.ui16_wheel_perimeter >> 8);
-
-	          // enable/disable motor temperature limit function or throttle
-          if (rt_vars.ui8_street_mode_feature_enabled && rt_vars.ui8_street_mode_throttle_enabled && rt_vars.ui8_optional_ADC_function == THROTTLE_CONTROL)
-          {
-            ui8_usart1_tx_buffer[8] = 0;
-          }
-          else
-          {
-            ui8_usart1_tx_buffer[8] = rt_vars.ui8_optional_ADC_function;
-          }
-	
-	break;
-
-    case 2:
-      // set motor type
-      ui8_usart1_tx_buffer[6] = rt_vars.ui8_motor_type;
-      // motor over temperature min value limit
-      ui8_usart1_tx_buffer[7] = rt_vars.ui8_motor_temperature_min_value_to_limit;
-      // motor over temperature max value limit
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_motor_temperature_max_value_to_limit;
-          
-    break;
-
-	case 3:
-	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_soft_start_feature_enabled;
-
-	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_hybrid_mode_enabled;
-
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_field_weakening_current_adc;
-
-    break;
-
-    case 4:
-	  
-	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_lights_configuration;
-	  // start without pedal rotation
-	  ui8_usart1_tx_buffer[7] = rt_vars.ui8_assist_without_pedal_rotation_threshold;
+	  // enable/disable motor temperature limit function or throttle
+     if (rt_vars.ui8_street_mode_feature_enabled && rt_vars.ui8_street_mode_throttle_enabled && rt_vars.ui8_optional_ADC_function == THROTTLE_CONTROL)
+     {
+      ui8_usart1_tx_buffer[7] = 0;
+     }
+     else
+     {
+      ui8_usart1_tx_buffer[7] = rt_vars.ui8_optional_ADC_function;
+     }
+      
+	  // max battery current in amps 
+	  ui8_usart1_tx_buffer[8] = rt_vars.ui8_battery_max_current;
       // motor acceleration
 	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_motor_acceleration;
+      ui8_usart1_tx_buffer[9] = rt_vars.ui8_motor_acceleration;
 	  }
-	  else{ui8_usart1_tx_buffer[8] = rt_vars.ui8_motor_acceleration_level[((rt_vars.ui8_assist_level) - 1)];}
+	  else{ui8_usart1_tx_buffer[9] = rt_vars.ui8_motor_acceleration_level[((rt_vars.ui8_assist_level) - 1)];}
 
-    break;
-
-    case 5:
-	  // pedal torque conversion
-	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100;
-	  // max battery current in amps    
-      ui8_usart1_tx_buffer[7] = rt_vars.ui8_battery_max_current;
-          
       // battery power limit
       if (rt_vars.ui8_street_mode_feature_enabled)
           {
 	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){		  
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_street_mode_power_limit_div25;}		  
+      ui8_usart1_tx_buffer[10] = rt_vars.ui8_street_mode_power_limit_div25;}		  
       else if (rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)] > rt_vars.ui8_street_mode_power_limit_div25){
-	  ui8_usart1_tx_buffer[8] = rt_vars.ui8_street_mode_power_limit_div25;}
-	  else {ui8_usart1_tx_buffer[8] = rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)];}
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_street_mode_power_limit_div25;}
+	  else {ui8_usart1_tx_buffer[10] = rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)];}
           }
       else
           {
 	  if (rt_vars.ui8_assist_level > rt_vars.ui8_number_of_assist_levels){		  
-      ui8_usart1_tx_buffer[8] = rt_vars.ui8_target_max_battery_power_div25;
+      ui8_usart1_tx_buffer[10] = rt_vars.ui8_target_max_battery_power_div25;
 	  }
-	  else{ui8_usart1_tx_buffer[8] = rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)];}	  
+	  else{ui8_usart1_tx_buffer[10] = rt_vars.ui8_target_peak_battery_power_div25[((rt_vars.ui8_assist_level) - 1)];}	  
 	  }
-
-    break;
-	 
-    case 6:
-      // motor current min
-      ui8_usart1_tx_buffer[6] = rt_vars.ui8_motor_current_min_adc;
-	  // cadence sensor pulse high percentage
-	  //if (rt_vars.ui8_cadence_sensor_mode == ADVANCED_MODE){
-      //uint16_t ui16_temp = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;
-      //ui8_usart1_tx_buffer[7] = (uint8_t) (ui16_temp & 0xff);
-      //ui8_usart1_tx_buffer[8] = (uint8_t) (ui16_temp >> 8);
-	//}
-	break;
-	
-    default:
-      ui8_message_id = 0;
-    break;
-  }
+    
 }
 
 	if(ui8_packet_type == UART_PACKET_CONFIG){
@@ -251,6 +197,8 @@ void rt_send_tx_package(void) {
       ui8_usart1_tx_buffer[6] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[0][0];     
       ui8_usart1_tx_buffer[7] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[0][1] & 0xff);
       ui8_usart1_tx_buffer[8] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[0][1] >> 8);
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_hall_ref_angles[0];
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_hall_counter_offset[0];
     
 	break;
 
@@ -258,6 +206,8 @@ void rt_send_tx_package(void) {
       ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[1][0] & 0xff);
       ui8_usart1_tx_buffer[7] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[1][0] >> 8);
 	  ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[1][1]; 
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_hall_ref_angles[1];
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_hall_counter_offset[1];
 	 
 	break;
 
@@ -265,37 +215,75 @@ void rt_send_tx_package(void) {
       ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[2][0] & 0xff);
       ui8_usart1_tx_buffer[8] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[2][0] >> 8);
 	  ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[2][1]; 
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_hall_ref_angles[2];
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_hall_counter_offset[2];
           
     break;
 
 	case 3:
 	  ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[3][0] & 0xff);
       ui8_usart1_tx_buffer[7] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[3][0] >> 8);
-      ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[3][1];     
+      ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[3][1];
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_hall_ref_angles[3];
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_hall_counter_offset[3];
 	 
     break;
 
     case 4:
 	  ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[4][0] & 0xff);
       ui8_usart1_tx_buffer[8] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[4][0] >> 8);
-      ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[4][1];     
+      ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[4][1];  
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_hall_ref_angles[4];
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_hall_counter_offset[4];	  
 
     break;
 
     case 5:
 	  ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[5][0] & 0xff);
       ui8_usart1_tx_buffer[8] = (uint8_t) (rt_vars.ui16_torque_sensor_calibration_table[5][0] >> 8);
-      ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[5][1];    
+      ui8_usart1_tx_buffer[8] = (uint8_t)  rt_vars.ui16_torque_sensor_calibration_table[5][1]; 
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_hall_ref_angles[5];
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_hall_counter_offset[5];	 
 
     break;
-	//parameters for soft start 
+
     case 6:
+	  //parameters for soft start 
 	  ui8_usart1_tx_buffer[6] = rt_vars.ui8_assist_level_power_assist[0];
       ui8_usart1_tx_buffer[7] = rt_vars.ui8_assist_level_torque_assist[0];
-      ui8_usart1_tx_buffer[8] = 0;
+      //battery low  voltage cutoff
+	  ui8_usart1_tx_buffer[8] = (uint8_t) (rt_vars.ui16_battery_low_voltage_cut_off_x10 & 0xff);
+      ui8_usart1_tx_buffer[9] = (uint8_t) (rt_vars.ui16_battery_low_voltage_cut_off_x10 >> 8);
+      // motor type
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_motor_type;
 
 	break;
 	
+	case 7:
+	  // wheel perimeter
+      ui8_usart1_tx_buffer[6] = (uint8_t) (rt_vars.ui16_wheel_perimeter & 0xff);
+      ui8_usart1_tx_buffer[7] = (uint8_t) (rt_vars.ui16_wheel_perimeter >> 8);
+	  // pedal torque conversion  
+	  ui8_usart1_tx_buffer[8] = rt_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100; 
+	  // battery min curent in ADC steps 		 
+	  ui8_usart1_tx_buffer[9] = rt_vars.ui8_field_weakening_current_adc;
+	  // lights options
+	  ui8_usart1_tx_buffer[10] = rt_vars.ui8_lights_configuration;
+	  
+	break;
+	
+	case 8:
+      // motor over temperature min value limit
+      ui8_usart1_tx_buffer[6] = rt_vars.ui8_motor_temperature_min_value_to_limit;
+      // motor over temperature max value limit
+      ui8_usart1_tx_buffer[7] = rt_vars.ui8_motor_temperature_max_value_to_limit;
+	  // start without pedal rotation
+	  ui8_usart1_tx_buffer[8] = rt_vars.ui8_assist_without_pedal_rotation_threshold;
+	  ui8_usart1_tx_buffer[9] = 0;
+	  ui8_usart1_tx_buffer[10] = 0;
+	  
+	break;
+	 
     default:
       ui8_message_id = 0;
     break;
@@ -311,15 +299,14 @@ void rt_send_tx_package(void) {
   ui8_usart1_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND + 2] = (uint8_t) (ui16_crc_tx >> 8) & 0xff;
   
 	// send the full package to UART
-  //we are sending 11 bytes but needs to be extra 1  don't know why???
+  //we are sending x bytes but needs to be added  extra 1???
   uart_send_tx_buffer(ui8_usart1_tx_buffer, UART_NUMBER_DATA_BYTES_TO_SEND + 4);
 		
   // increment message_id for next package
-  if(++ui8_message_id > UART_MAX_NUMBER_MESSAGE_ID)
+  if(++ui8_message_id > UART_MAX_NUMBER_MESSAGE_ID) 
   {
     ui8_message_id = 0;
   }
-
 }  
 
 void rt_low_pass_filter_battery_voltage_current_power(void) {
@@ -380,7 +367,7 @@ void rt_calc_battery_voltage_soc(void) {
 }
 
 void rt_calc_wh(void) {
-	static uint8_t ui8_1s_timer_counter = 0;
+	static uint8_t ui8_3s_timer_counter = 0;
 	uint32_t ui32_temp = 0;
 
 	if (m_reset_wh_flag == false) {
@@ -389,13 +376,13 @@ void rt_calc_wh(void) {
       rt_vars.ui32_wh_sum_counter++;
     }
 
-    // calc at 1s rate
-    if (++ui8_1s_timer_counter >= 10) {
-      ui8_1s_timer_counter = 0;
+    // calc at 3s rate
+    if (++ui8_3s_timer_counter >= 25) {
+      ui8_3s_timer_counter = 0;
 
       // avoid zero divisison
       if (rt_vars.ui32_wh_sum_counter != 0) {
-        ui32_temp = rt_vars.ui32_wh_sum_counter / 36;
+        ui32_temp = rt_vars.ui32_wh_sum_counter / (36 * 3); // 3sec
         ui32_temp = (ui32_temp
             * (rt_vars.ui32_wh_sum_x5 / rt_vars.ui32_wh_sum_counter))
             / 500;
@@ -414,40 +401,26 @@ void reset_wh(void) {
 }
 
 static void rt_calc_odometer(void) {
-    static uint8_t ui8_1s_timer_counter;
-	uint32_t uint32_temp;
+	static uint8_t ui8_3s_timer_counter;
+	static uint32_t ui32_remainder = 0;
 	uint8_t ui8_01km_flag = 0;
 
-	// calc at 1s rate
-	if (++ui8_1s_timer_counter >= 10) {
-		ui8_1s_timer_counter = 0;
-
-		uint32_temp = (rt_vars.ui32_wheel_speed_sensor_tick_counter
-				- ui_vars.ui32_wheel_speed_sensor_tick_counter_offset)
-				* ((uint32_t) rt_vars.ui16_wheel_perimeter);
-		// avoid division by 0
-		if (uint32_temp > 100000) {
-			uint32_temp /= 100000;
-		}  // milimmeters to 0.1kms
-		else {
-			uint32_temp = 0;
-		}
-
-		// now store the value on the global variable
-		// rt_vars.ui16_odometer_distance_x10 = (uint16_t) uint32_temp;
+	// calc at 3s rate
+	if (++ui8_3s_timer_counter >= 25) {
+		ui8_3s_timer_counter = 0;
 
 		// calculate how many revolutions since last reset and convert to distance traveled
 		uint32_t ui32_temp = (rt_vars.ui32_wheel_speed_sensor_tick_counter
 				- rt_vars.ui32_wheel_speed_sensor_tick_counter_offset)
-				* ((uint32_t) rt_vars.ui16_wheel_perimeter);
+				* ((uint32_t) rt_vars.ui16_wheel_perimeter) + ui32_remainder;
 
 		// if traveled distance is more than 100 meters update all distance variables and reset
 		if (ui32_temp >= 100000) { // 100000 -> 100000 mm -> 0.1 km
 			// update all distance variables
 			// ui_vars.ui16_distance_since_power_on_x10 += 1;
 			rt_vars.ui32_odometer_x10 += 1;
-			rt_vars.ui32_trip_x10 += 1;
 			ui8_01km_flag = 1;
+			ui32_remainder = ui32_temp - 100000;
 
 			// reset the always incrementing value (up to motor controller power reset) by setting the offset to current value
 			rt_vars.ui32_wheel_speed_sensor_tick_counter_offset =
@@ -479,6 +452,68 @@ static void rt_calc_odometer(void) {
   }
 }
 
+static void rt_calc_trip_stats(void) {
+  static uint8_t ui8_3s_timer_counter = 0;
+  static uint32_t ui32_wheel_speed_sensor_tick_counter_offset = 0;
+  static uint32_t ui32_remainder = 0;
+  static uint32_t ui32_avg_counter = 0;
+  
+  // used to determine if trip avg speed values have to be calculated :
+  // - on first time this function is called ; so set by dfault to 1
+  // - then every 1 meter traveled
+  static uint8_t ui8_calc_avg_flag = 1;
+
+  // calculate how many revolutions since last reset ...
+  uint32_t wheel_ticks = rt_vars.ui32_wheel_speed_sensor_tick_counter
+      - ui32_wheel_speed_sensor_tick_counter_offset;
+
+  // ... and convert to distance traveled
+  uint32_t ui32_temp = wheel_ticks * ((uint32_t) rt_vars.ui16_wheel_perimeter) + ui32_remainder;
+
+  // if traveled distance is more than 1 wheel turn update trip variables and reset
+  if (wheel_ticks >= 1) { 
+ 
+    ui8_calc_avg_flag = 1;
+
+    // update all trip distance variables
+    rt_vars.ui32_trip_distance_x1000 += (ui32_temp / 1000);
+	ui32_remainder = ui32_temp % 1000;
+
+    // update trip  max speed
+    if (rt_vars.ui16_wheel_speed_x10 > rt_vars.ui16_trip_max_speed_x10)
+      rt_vars.ui16_trip_max_speed_x10 = rt_vars.ui16_wheel_speed_x10;
+
+    // reset the always incrementing value (up to motor controller power reset) by setting the offset to current value
+    ui32_wheel_speed_sensor_tick_counter_offset =	rt_vars.ui32_wheel_speed_sensor_tick_counter;
+
+  }
+
+
+  // calculate trip averages(every 3s)
+  if (ui8_calc_avg_flag == 1 && ++ui8_3s_timer_counter >= 25) {
+    rt_vars.ui16_trip_avg_speed_x10 = (rt_vars.ui32_trip_distance_x1000 * 36) / rt_vars.ui32_trip_time;
+    
+
+	rt_vars.ui16_battery_current_avg +=  (rt_vars.ui16_battery_current_filtered_x5 * 2) / ++ui32_avg_counter;
+	
+	rt_vars.ui16_battery_power_avg += rt_vars.ui16_battery_power_filtered / ++ui32_avg_counter;
+	
+	rt_vars.ui16_pedal_power_avg += rt_vars.ui16_pedal_power_filtered / ++ui32_avg_counter; 
+	
+	rt_vars.ui16_pedal_cadence_avg += rt_vars.ui8_pedal_cadence_filtered / ++ui32_avg_counter;
+	
+	if (rt_vars.battery_energy_h_km.ui32_value_x10)
+    rt_vars.ui16_battery_energy_h_km_avg_x10 += rt_vars.battery_energy_h_km.ui32_value_x10 / ++ui32_avg_counter;
+	
+	// update all trip time variable if wheel is turning
+    if (rt_vars.ui16_wheel_speed_x10 > 0) 
+      rt_vars.ui32_trip_time += 3;  
+    // reset 3s timer counter and flag
+    ui8_calc_avg_flag = 0;    
+    ui8_3s_timer_counter = 0;
+  }
+}
+
 static void rt_low_pass_filter_pedal_cadence(void) {
 	static uint16_t ui16_pedal_cadence_accumulated = 0;
 
@@ -498,26 +533,27 @@ static void rt_low_pass_filter_pedal_cadence(void) {
 }
 
 void rt_first_time_management(void) {
-  static uint32_t ui32_counter = 0;
+  static uint8_t ui8_counter = 0;
+  static uint8_t ui8_motor_init_command_error_cnt = 250;
 
   // wait 5 seconds to help motor variables data stabilize
   if (ui8_g_motorVariablesStabilized == 0)
-    if (++ui32_counter > 40) {
+    if (++ui8_counter > 40) {
       ui8_g_motorVariablesStabilized = 1;
 #ifndef SW102
       extern Field *activeGraphs; // FIXME, move this extern someplace better, placing here for review purposes
   	  activeGraphs = &(*graphs[g_showNextScreenIndex]); // allow graph plotting to start
 #endif
     }
-
-   // motor ok so we are sending first values for torque linearizaton table
+    	ui8_motor_init_command_error_cnt--;
+   
+   // communication established  so we are sending config values
 	if ((ui8_m_usart1_received_first_package < 10) && (g_motor_init_state == MOTOR_INIT_NOT_READY)){
 		ui8_packet_type = UART_PACKET_CONFIG;
-	    g_motor_init_state = MOTOR_INIT_SEND_CONFIG;
-		//prepare_torque_sensor_calibration_table();
+	    g_motor_init_state = MOTOR_INIT_STARTUP_CONFIG;
 	}
 	// this will be executed only 1 time at startup
-    else if(ui8_g_motorVariablesStabilized) {
+    else if ((ui8_g_motorVariablesStabilized) && (g_motor_init_state == MOTOR_INIT_STARTUP_CONFIG)) {
     // reset Wh value if battery voltage is over ui16_battery_voltage_reset_wh_counter_x10 (value configured by user)
     if (((uint32_t) ui_vars.ui16_adc_battery_voltage)
         > ((uint32_t) ui_vars.ui16_battery_voltage_reset_wh_counter_x10
@@ -525,14 +561,25 @@ void rt_first_time_management(void) {
       ui_vars.ui32_wh_x10_offset = 0;
     }
     // all values hopefully sent
-	if (g_motor_init_state == MOTOR_INIT_SEND_CONFIG){
 	ui8_packet_type = UART_PACKET_REGULAR;
 	g_motor_init_state = MOTOR_INIT_READY;
-	}
-	//else if (g_motor_init_state == MOTOR_INIT_NOT_READY){
-	//g_motor_init_state = MOTOR_INIT_ERROR;
-	//}
-  }
+    ui8_counter = 0;
+  } else if ((ui8_counter <= 10) && (g_motor_init_state == MOTOR_UPDATE_CONFIG)) { //we want to send updated config values
+    if (ui8_counter == 0)
+	prepare_torque_sensor_calibration_table();
+	
+	ui8_packet_type = UART_PACKET_CONFIG;
+	ui8_counter++;
+  } else if ((ui8_counter > 10) && (g_motor_init_state == MOTOR_UPDATE_CONFIG)) { //wait 10 loops for uart to send all values  than switch to regular packet
+    // all values hopefully sent
+	ui8_packet_type = UART_PACKET_REGULAR;
+	g_motor_init_state = MOTOR_INIT_READY;
+	ui8_counter  = 0;
+  } else if (ui8_motor_init_command_error_cnt == 0){ 
+    g_motor_init_state = MOTOR_INIT_ERROR;
+  } else if (g_motor_init_state == MOTOR_INIT_READY){
+    ui8_motor_init_command_error_cnt = 250;
+  }  
 }
 
 void rt_calc_battery_soc(void) {
@@ -607,22 +654,31 @@ void copy_rt_to_ui_vars(void) {
     ui_vars.battery_energy_km_value_x100 = rt_vars.battery_energy_h_km.ui32_value_x100;
 	ui_vars.ui8_braking = rt_vars.ui8_braking;
 	ui_vars.ui8_foc_angle = (((uint16_t) rt_vars.ui8_foc_angle) * 14) / 10; // each units is equal to 1.4 degrees ((360 degrees / 256) = 1.4)
-	ui_vars.ui32_trip_x10 = rt_vars.ui32_trip_x10;
 	ui_vars.ui32_odometer_x10 = rt_vars.ui32_odometer_x10;
 	ui_vars.ui16_pedal_torque_x100 = rt_vars.ui16_pedal_torque_x100;	
     ui_vars.ui16_pedal_power_x10 = rt_vars.ui16_pedal_power_x10;
     
-	//if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
-	//ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10;	
-
 	//ui_vars.ui32_nav_turn_distance = rt_vars.ui32_nav_turn_distance;
 	//ui_vars.ui32_nav_total_distance = rt_vars.ui32_nav_total_distance;
 	//ui_vars.ui32_nav_total_turn_distance = rt_vars.ui32_nav_total_distance;
 	//ui_vars.ui8_nav_info = rt_vars.ui8_nav_info;
 	//ui_vars.ui8_nav_info_extra = rt_vars.ui8_nav_info_extra;
     
+	rt_vars.ui8_calibration_duty_cycle_target = ui_vars.ui8_calibration_duty_cycle_target;
 	rt_vars.ui8_walk_assist_feature_enabled = ui_vars.ui8_walk_assist_feature_enabled;
 	rt_vars.ui32_wh_x10_100_percent = ui_vars.ui32_wh_x10_100_percent;
+
+	ui_vars.ui32_trip_distance_x1000 = rt_vars.ui32_trip_distance_x1000;
+	ui_vars.ui32_trip_distance_x100 = rt_vars.ui32_trip_distance_x1000 / 10;  
+	ui_vars.ui32_trip_time = rt_vars.ui32_trip_time;
+	ui_vars.ui16_trip_avg_speed_x10 = rt_vars.ui16_trip_avg_speed_x10;
+	ui_vars.ui16_trip_max_speed_x10 = rt_vars.ui16_trip_max_speed_x10;
+	ui_vars.ui16_battery_current_avg = rt_vars.ui16_battery_current_avg; 
+	ui_vars.ui16_battery_power_avg = rt_vars.ui16_battery_power_avg;
+	ui_vars.ui16_pedal_power_avg = rt_vars.ui16_pedal_power_avg; 
+	ui_vars.ui16_pedal_cadence_avg = rt_vars.ui16_pedal_cadence_avg;
+	ui_vars.ui16_battery_energy_h_km_avg_x10 = rt_vars.ui16_battery_energy_h_km_avg_x10;
+  
 	rt_vars.ui32_wh_x10_offset = ui_vars.ui32_wh_x10_offset;
 	rt_vars.ui16_battery_pack_resistance_x1000 = ui_vars.ui16_battery_pack_resistance_x1000;
 	rt_vars.ui8_assist_level = ui_vars.ui8_assist_level;
@@ -653,6 +709,13 @@ void copy_rt_to_ui_vars(void) {
 	  rt_vars.ui8_assist_level_torque_assist[i] = ui_vars.ui8_assist_level_torque_assist[i];
 	}		
 	
+	for (uint8_t i = 0; i < 6; i++) {
+	  rt_vars.ui8_hall_ref_angles[i] = ui_vars.ui8_hall_ref_angles[i];
+	}	
+
+	for (uint8_t i = 0; i < 6; i++) {
+	  rt_vars.ui8_hall_counter_offset[i] = ui_vars.ui8_hall_counter_offset[i];
+	}	
 	
 	rt_vars.ui16_battery_voltage_reset_wh_counter_x10 = ui_vars.ui16_battery_voltage_reset_wh_counter_x10;
 	rt_vars.ui8_lights = ui_vars.ui8_lights;
@@ -662,7 +725,7 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui16_battery_low_voltage_cut_off_x10 =
 			ui_vars.ui16_battery_low_voltage_cut_off_x10;
 	rt_vars.ui16_wheel_perimeter = ui_vars.ui16_wheel_perimeter;
-	rt_vars.ui8_wheel_max_speed = ui_vars.wheel_max_speed_x10 / 10;
+	rt_vars.ui8_wheel_max_speed = (uint8_t) (ui_vars.wheel_max_speed_x10 / 10);
 	rt_vars.ui8_motor_type = ui_vars.ui8_motor_type;
 	rt_vars.ui8_assist_without_pedal_rotation_threshold =
 			ui_vars.ui8_assist_without_pedal_rotation_threshold;
@@ -709,7 +772,7 @@ void automatic_power_off_management(void) {
 			// check if we should power off the LCD
 			if (ui16_lcd_power_off_time_counter
 					>= (ui_vars.ui8_lcd_power_off_time_minutes * 10 * 60)) { // have we passed our timeout?
-//				lcd_power_off(1);
+				lcd_power_off(1);
 			}
 		}
 	} else {
@@ -762,12 +825,23 @@ void uart_data_clock(void) {
         break;
       }
 
-          rt_vars.ui16_adc_pedal_torque_sensor = (((uint16_t) p_rx_buffer[10]) << 8) + ((uint16_t) p_rx_buffer[9]);
+     	  rt_vars.ui8_pedal_cadence = p_rx_buffer[9];
           
-		  rt_vars.ui8_pedal_cadence = p_rx_buffer[11];
-          
+		  if (rt_vars.ui8_riding_mode == MOTOR_CALIBRATION_MODE) {
+		  rt_vars.ui16_hall_calib_cnt[0] = (((uint16_t) p_rx_buffer[11]) << 8) + ((uint16_t) p_rx_buffer[10]);
+		  rt_vars.ui16_hall_calib_cnt[1] = (((uint16_t) p_rx_buffer[13]) << 8) + ((uint16_t) p_rx_buffer[12]); 
+		  rt_vars.ui16_hall_calib_cnt[2] = (((uint16_t) p_rx_buffer[15]) << 8) + ((uint16_t) p_rx_buffer[14]); 
+		  rt_vars.ui16_hall_calib_cnt[3] = (((uint16_t) p_rx_buffer[17]) << 8) + ((uint16_t) p_rx_buffer[16]);
+		  rt_vars.ui16_hall_calib_cnt[4] = (((uint16_t) p_rx_buffer[19]) << 8) + ((uint16_t) p_rx_buffer[18]); 
+		  rt_vars.ui16_hall_calib_cnt[5] = (((uint16_t) p_rx_buffer[21]) << 8) + ((uint16_t) p_rx_buffer[20]);
+		  }
+		  else
+		  {
+		  
+		  rt_vars.ui16_adc_pedal_torque_sensor = (((uint16_t) p_rx_buffer[11]) << 8) + ((uint16_t) p_rx_buffer[10]);
+		  
 		  rt_vars.ui8_duty_cycle = p_rx_buffer[12];
-          
+		  
 		  rt_vars.ui16_motor_speed_erps = (((uint16_t) p_rx_buffer[14]) << 8) + ((uint16_t) p_rx_buffer[13]);
           
 		  rt_vars.ui8_foc_angle = p_rx_buffer[15];
@@ -783,12 +857,8 @@ void uart_data_clock(void) {
 		  if (rt_vars.ui8_torque_sensor_calibration_feature_enabled){
 		  rt_vars.ui16_pedal_weight = ui16_pedal_torque_temp / 17;
           }else{rt_vars.ui16_pedal_weight = ui16_pedal_torque_temp * 10 / 167;}
-		  
-		  //cadence sensor pulse high percentage calibration
-		 // if (rt_vars.ui8_cadence_sensor_mode == CALIBRATION_MODE)
-		 // rt_vars.ui16_cadence_sensor_pulse_high_percentage_x10 = (((uint16_t) p_rx_buffer[23]) << 8) + ((uint16_t) p_rx_buffer[22]);
+		  }
 
-    
 
     // let's wait for 10 packages, seems that first ADC battery voltages have incorrect values
     ui8_m_usart1_received_first_package++;
@@ -796,17 +866,19 @@ void uart_data_clock(void) {
       ui8_m_usart1_received_first_package = 10;
     }
    
-    if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_SEND_CONFIG) 
+	if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_STARTUP_CONFIG || MOTOR_UPDATE_CONFIG) 
     rt_send_tx_package();
+	
+    //now  we do all calculations that must be done after receiving data  
+    if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_STARTUP_CONFIG || MOTOR_UPDATE_CONFIG) 
+	rt_processing();	
   
-   //now  we do all calculations that must be done after receiving data  
-    rt_processing();
 #ifdef SW102
-    ble_uart_send(&rt_vars);
+    if (g_motor_init_state == MOTOR_INIT_READY)
+	ble_uart_send(&rt_vars);
 #endif	
 	}
 
-	//prepare_torque_sensor_calibration_table();    
 	// We expected a packet during this 120ms window but one did not arrive.  This might happen if the motor is still booting and we don't want to declare failure
     // unless something is seriously busted (because we will be raising the fault screen and eventually forcing the bike to shutdown) so be very conservative
     // and wait for 10 seconds of missed packets.
@@ -825,6 +897,7 @@ void rt_processing(void)
   rt_low_pass_filter_pedal_cadence();
   rt_calc_battery_voltage_soc();
   rt_calc_odometer();
+  rt_calc_trip_stats();
   rt_calc_wh();
   rt_graph_process();
   /************************************************************************************************/
@@ -839,16 +912,20 @@ void prepare_torque_sensor_calibration_table(void) {
   rt_processing_stop();
 
   // at the very first time, copy the ADC values from one table to the other
-  if (first_time) {
+  //if (first_time) {
     first_time = false;
 
     for (uint8_t i = 0; i < 6; i++) {
       rt_vars.ui16_torque_sensor_calibration_table[i][0] = ui_vars.ui16_torque_sensor_calibration_table[i][1];
-	  //we need raw values for android app
-	  rt_vars.ui16_torque_sensor_calibration_ble_table[i][0] = ui_vars.ui16_torque_sensor_calibration_table[i][0]; //kg vlues	  
-	  rt_vars.ui16_torque_sensor_calibration_ble_table[i][1] = ui_vars.ui16_torque_sensor_calibration_table[i][1]; //adc values
     }
-  }
+  //}
+  
+   //we need raw values for android app
+      for (uint8_t i = 0; i < 6; i++) {
+	rt_vars.ui16_torque_sensor_calibration_ble_table[i][0] = ui_vars.ui16_torque_sensor_calibration_table[i][0]; //kg vlues	  
+	rt_vars.ui16_torque_sensor_calibration_ble_table[i][1] = ui_vars.ui16_torque_sensor_calibration_table[i][1]; //adc values
+     }
+	 
   // get the delta values of ADC steps per kg
   for (uint8_t i = 1; i < 6; i++) {
     // get the deltas x100

@@ -3,6 +3,20 @@
 #include "configscreen.h"
 #include "eeprom.h"
 
+
+static Field tripMenus[] =
+{
+		FIELD_EDITABLE_ENUM(_S("Reset stats", "Rst stats"), &ui8_g_configuration_trip_reset, "no", "yes"),
+		FIELD_READONLY_UINT(_S("Trip time", "Trip time"), &ui16_g_trip_time, "h", false, .div_digits = 2),
+		FIELD_READONLY_UINT(_S("Trip distance", "Trip dist"), &ui_vars.ui32_trip_distance_x100, "km", false, .div_digits = 2),		
+		FIELD_READONLY_UINT(_S("Trip avg speed", "Avg speed"), &ui_vars.ui16_trip_avg_speed_x10, "km/h", false, .div_digits = 1),	
+		FIELD_READONLY_UINT(_S("Avg battery Current", "Avg curr"), &ui_vars.ui16_battery_current_avg, "amps", false, .div_digits = 1),
+	    FIELD_READONLY_UINT(_S("Avg motor Power", "Avg MotPwr"), &ui_vars.ui16_battery_power_avg, "Watts", false),
+		FIELD_READONLY_UINT(_S("Avg pedal Power", "Avg PedPwr"), &ui_vars.ui16_pedal_power_avg, "Watts", false),
+		FIELD_READONLY_UINT(_S("Avg pedal Cadence", "Avg Cad"), &ui_vars.ui16_pedal_cadence_avg, "RPM", false),
+		FIELD_READONLY_UINT(_S("Avg energy consumption", "Avg energy"), &ui_vars.ui16_battery_energy_h_km_avg_x10, "Wh/km", false, .div_digits = 1),		
+		FIELD_END };
+	
 static Field wheelMenus[] =
 		{
 		FIELD_EDITABLE_UINT("Max speed", &ui_vars.wheel_max_speed_x10, "kph", 1, 990, .div_digits = 1, .inc_step = 10, .hide_fraction = true),
@@ -13,10 +27,10 @@ static Field batteryMenus[] =
 		{
 		FIELD_EDITABLE_UINT(_S("Max current", "Max curren"), &ui_vars.ui8_battery_max_current, "amps", 1, 18),
 		FIELD_EDITABLE_UINT(_S("Low cut-off", "Lo cut-off"), &ui_vars.ui16_battery_low_voltage_cut_off_x10, "volts", 160, 630, .div_digits = 1),
-        FIELD_EDITABLE_UINT(_S("Resistance", "Resistance"), &ui_vars.ui16_battery_pack_resistance_x1000, "mohm", 0, 1000),
-        FIELD_READONLY_UINT(_S("Voltage est", "Voltag est"), &ui_vars.ui16_battery_voltage_soc_x10, "volts", false, .div_digits = 1),
-        FIELD_READONLY_UINT(_S("Resistance est", "Resist est"), &ui_vars.ui16_battery_pack_resistance_estimated_x1000, "mohm", 0, 1000),
+        FIELD_EDITABLE_UINT(_S("Battery resistance", "Bat resist"), &ui_vars.ui16_battery_pack_resistance_x1000, "mohm", 0, 1000),
+        FIELD_READONLY_UINT(_S("Voltage est", "Voltag est"), &ui_vars.ui16_battery_voltage_soc_x10, "volts", false, .div_digits = 1),		
 		FIELD_READONLY_UINT(_S("Power loss est", "Power loss"), &ui_vars.ui16_battery_power_loss, "watts", false, .div_digits = 0),
+		FIELD_READONLY_UINT(_S("Resistance est", "Resist est"), &ui_vars.ui16_battery_pack_resistance_x1000, "mohm", false),
 		FIELD_END };
 
 static Field batterySOCMenus[] =
@@ -29,20 +43,20 @@ static Field batterySOCMenus[] =
 static Field motorMenus[] = {
         FIELD_EDITABLE_ENUM(_S("Motor voltage", "Motor volt"), &ui_vars.ui8_motor_type, "48V", "36V"),
 		FIELD_EDITABLE_ENUM(_S("Field weakening", "Field wk"), &ui_vars.ui8_field_weakening_enabled, "disable", "enable"),
-		FIELD_EDITABLE_UINT(_S("FW ADC", "FW ADC"), &ui_vars.ui8_field_weakening_current_adc, "", 0, 25, .inc_step = 5), 		
-        FIELD_EDITABLE_UINT(_S("Motor acceleration", "Mot acc"), &ui_vars.ui8_motor_acceleration, "", 0, 50),
-        FIELD_EDITABLE_UINT(_S("Z-cadence assist thd", "Z-cad thd"), &ui_vars.ui8_assist_without_pedal_rotation_threshold, "", 0, 100),
-		FIELD_EDITABLE_UINT(_S("Min current ADC step", "MinADCcur"), &ui_vars.ui8_motor_current_min_adc, "amps", 0, 3), // 3 ADC steps = 0.48 amps
+		FIELD_EDITABLE_UINT(_S("Field Weak ADC Step", "FW ADC"), &ui_vars.ui8_field_weakening_current_adc, "adc", 0, 25, .inc_step = 5),
+        FIELD_EDITABLE_UINT(_S("Motor accel", "Mot accel"), &ui_vars.ui8_motor_acceleration, "value", 0, 50),
+		FIELD_EDITABLE_UINT(_S("Min current ADC", "MinADCcur"), &ui_vars.ui8_motor_current_min_adc, "amps", 0, 3), // 1 ADC step = 0.16 amp
 		FIELD_END };
 
 static Field torqueSensorMenus[] =
     {
-		FIELD_EDITABLE_ENUM(_S("Calibration", "Calibrat"), &ui_vars.ui8_torque_sensor_calibration_feature_enabled, "disable", "enable"),
+		FIELD_EDITABLE_UINT(_S("0-cad assist thd", "0-cad thd"), &ui_vars.ui8_assist_without_pedal_rotation_threshold, "value", 0, 100),
+		FIELD_EDITABLE_ENUM(_S("TQS Calibration", "TQS Calib"), &ui_vars.ui8_torque_sensor_calibration_feature_enabled, "disable", "enable"),		
+	    FIELD_EDITABLE_UINT(_S("Weight adjustment", "Weight adj"), &ui_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100, "value", 0, 100),
 		FIELD_READONLY_UINT(_S("Weight", "Weight"), &ui_vars.ui16_pedal_weight, "kg", .div_digits = 1),
-		FIELD_EDITABLE_UINT(_S("Weight adjustment", "Weight adj"), &ui_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100, "", 0, 100),
 		FIELD_READONLY_UINT(_S("Pedal torque", "Pedal Tor"), &ui_vars.ui16_pedal_torque_x100, "Nm"),
-		FIELD_READONLY_UINT(_S("ADC torque sensor", "ADC torque"), &ui_vars.ui16_adc_pedal_torque_sensor, "",),
-
+		FIELD_READONLY_UINT(_S("ADC torque sensor", "ADC torque"), &ui_vars.ui16_adc_pedal_torque_sensor, "adc",),
+#ifndef SW102
         FIELD_EDITABLE_UINT(_S("weight 1", "weight 1"), &ui_vars.ui16_torque_sensor_calibration_table[0][0], "kg", 0, 150),
         FIELD_EDITABLE_UINT("ADC 1", &ui_vars.ui16_torque_sensor_calibration_table[0][1], "", 0, 400),
         FIELD_EDITABLE_UINT(_S("weight 2", "weight 2"), &ui_vars.ui16_torque_sensor_calibration_table[1][0], "kg", 0, 150),
@@ -55,18 +69,23 @@ static Field torqueSensorMenus[] =
         FIELD_EDITABLE_UINT("ADC 5", &ui_vars.ui16_torque_sensor_calibration_table[4][1], "", 0, 400),	
 		FIELD_EDITABLE_UINT(_S("weight 6", "weight 6"), &ui_vars.ui16_torque_sensor_calibration_table[5][0], "kg", 0, 150),
         FIELD_EDITABLE_UINT("ADC 6", &ui_vars.ui16_torque_sensor_calibration_table[5][1], "", 0, 400),	
+#endif
 		FIELD_END };
 
 static Field assistMenus[] =
 		{
 		//FIELD_EDITABLE_ENUM(_S("Assist mode", "Asst mode"), &ui_vars.ui8_riding_mode_ui, "OFF", "PAM"),
-		FIELD_EDITABLE_UINT(_S("eMTB sensitivity", "eMTB sens"), &ui_vars.ui8_eMTB_assist_level, "", 1, 10),						
-		FIELD_EDITABLE_UINT(_S("Num assist levels", "Num Levels"), &ui_vars.ui8_number_of_assist_levels, "", 1, 5),
+		FIELD_EDITABLE_UINT(_S("eMTB sensitivity", "eMTB sens"), &ui_vars.ui8_eMTB_assist_level, "level", 1, 10),						
+		FIELD_EDITABLE_UINT(_S("Num assist levels", "Num Levels"), &ui_vars.ui8_number_of_assist_levels, "value", 1, 5),
+		FIELD_EDITABLE_ENUM("Soft start", &ui_vars.ui8_soft_start_feature_enabled, "disable", "enable"),
+		FIELD_EDITABLE_ENUM("Hybrid mode", &ui_vars.ui8_hybrid_mode_enabled, "disable", "enable"),
+#ifndef SW102		
 		FIELD_EDITABLE_UINT("PA Level 1", &ui_vars.ui8_assist_level_power_assist[0], "", 0, 50, .div_digits = 1),
 		FIELD_EDITABLE_UINT("PA Level 2", &ui_vars.ui8_assist_level_power_assist[1], "", 0, 50, .div_digits = 1),
 		FIELD_EDITABLE_UINT("PA Level 3", &ui_vars.ui8_assist_level_power_assist[2], "", 0, 50, .div_digits = 1),
 		FIELD_EDITABLE_UINT("PA Level 4", &ui_vars.ui8_assist_level_power_assist[3], "", 0, 50, .div_digits = 1),
 		FIELD_EDITABLE_UINT("PA Level 5", &ui_vars.ui8_assist_level_power_assist[4], "", 0, 50, .div_digits = 1),
+#endif
 		FIELD_END };
 
 static Field walkAssistMenus[] =
@@ -98,31 +117,27 @@ static Field streetModeMenus[] =
 static Field displayMenus[] =
 		{
 #ifndef SW102
+	    FIELD_EDITABLE_ENUM("Clock field", &ui_vars.ui8_time_field_enable, "disable", "clock", "batt SOC %", "batt volts"),
 		FIELD_EDITABLE_UINT("Clock hours", &ui8_g_configuration_clock_hours, "", 0, 23, .onSetEditable = onSetConfigurationClockHours),
 		FIELD_EDITABLE_UINT("Clock minutes", &ui8_g_configuration_clock_minutes, "", 0, 59, .onSetEditable = onSetConfigurationClockMinutes),
 		FIELD_EDITABLE_UINT("Brightness on", &ui_vars.ui8_lcd_backlight_on_brightness, "", 5, 100, .inc_step = 5, .onSetEditable = onSetConfigurationDisplayLcdBacklightOnBrightness),
 		FIELD_EDITABLE_UINT("Brightness off", &ui_vars.ui8_lcd_backlight_off_brightness, "", 5, 100, .inc_step = 5, .onSetEditable = onSetConfigurationDisplayLcdBacklightOffBrightness),
 		FIELD_EDITABLE_ENUM("Buttons invert", &ui_vars.ui8_buttons_up_down_invert, "default", "invert"),
-#endif
+#else		
+		FIELD_EDITABLE_ENUM(_S("Reset BLE connections", "Reset BLE"), &ui8_g_configuration_display_reset_bluetooth_peers, "no", "yes"),
+#endif		
+		FIELD_EDITABLE_ENUM(_S("Reset to defaults", "Reset def"), &ui8_g_configuration_display_reset_to_defaults, "no", "yes"),
 		FIELD_EDITABLE_ENUM("Text", &ui_vars.ui8_battery_soc_enable, "disable", "SOC %", "volts"),
-		FIELD_EDITABLE_UINT(_S("Auto power off", "Auto p off"), &ui_vars.ui8_lcd_power_off_time_minutes, "mins", 0, 255),
+		FIELD_EDITABLE_UINT(_S("Auto power off", "Auto p off"), &ui_vars.ui8_lcd_power_off_time_minutes, "mins", 0, 255),		
 		FIELD_EDITABLE_ENUM("Units", &ui_vars.ui8_units_type, "SI", "Imperial"),
 #ifndef SW102
 //  FIELD_READONLY_STRING("Display firmware", ""),
 //  FIELD_READONLY_STRING("TSDZ2 firmware", ""),
 		FIELD_READONLY_ENUM("LCD type", &g_lcd_ic_type, "ILI9481", "ST7796", "unknown"),
-#else
-		FIELD_EDITABLE_ENUM(_S("Reset BLE connections", "Reset BLE"), &ui8_g_configuration_display_reset_bluetooth_peers, "no", "yes"),
 #endif
-		FIELD_EDITABLE_ENUM(_S("Reset to defaults", "Reset def"), &ui8_g_configuration_display_reset_to_defaults, "no", "yes"),
 		FIELD_END };
 
 static Field variousMenus[] = {
-		//FIELD_EDITABLE_ENUM(_S("Cadence Mode", "Cad mode"), &ui_vars.ui8_cadence_sensor_mode, "Standard", "Advanced", "CADCSMode"),
-		//FIELD_EDITABLE_ENUM(_S("Cadence calib", "Cad calib"), &ui_vars.ui8_cadence_sensor_calib_enabled, "disable", "enable"),
-		//FIELD_EDITABLE_UINT("Cadence Pulse", &ui_vars.ui16_cadence_sensor_pulse_high_percentage_x10, "",200,800),
-		FIELD_EDITABLE_ENUM("Soft_start", &ui_vars.ui8_soft_start_feature_enabled, "disable", "enable"),
-		FIELD_EDITABLE_ENUM("Hybrid mode", &ui_vars.ui8_hybrid_mode_enabled, "disable", "enable"),
 	    FIELD_EDITABLE_UINT("Odometer", &ui_vars.ui32_odometer_x10, "km", 0, UINT32_MAX, .div_digits = 1, .inc_step = 100, .onSetEditable = onSetConfigurationWheelOdometer),
 		FIELD_END };
 
@@ -271,7 +286,7 @@ static Field variablesMenus[] = {
   FIELD_SCROLLABLE(_S("motor pwm", "mot pwm"), varMotorPWMMenus),
   FIELD_SCROLLABLE(_S("motor foc", "mot foc"), varMotorFOCMenus),
   FIELD_END };
-#endif
+
 
 static Field technicalMenus[] = {
   FIELD_READONLY_UINT(_S("ADC throttle sensor", "ADC thrott"), &ui_vars.ui8_adc_throttle, ""),
@@ -283,23 +298,27 @@ static Field technicalMenus[] = {
   FIELD_READONLY_UINT(_S("Motor speed", "Mot speed"), &ui_vars.ui16_motor_speed_erps, ""),
   FIELD_READONLY_UINT("Motor FOC", &ui_vars.ui8_foc_angle, ""),
   FIELD_END };
+#endif
 
 static Field topMenus[] = {
-  FIELD_SCROLLABLE("Wheel", wheelMenus),
+  FIELD_SCROLLABLE("Display", displayMenus),
+  FIELD_SCROLLABLE("Motor", motorMenus),
   FIELD_SCROLLABLE("Battery", batteryMenus),
+  FIELD_SCROLLABLE("Wheel", wheelMenus),
   FIELD_SCROLLABLE(_S("Battery SOC", "Bat SOC"), batterySOCMenus),
-  FIELD_SCROLLABLE(_S("Motor ", "Motor"), motorMenus),
   FIELD_SCROLLABLE(_S("Torque sensor", "Torque sen"), torqueSensorMenus),
   FIELD_SCROLLABLE(_S("Assist modes", "Assist M"), assistMenus),
   FIELD_SCROLLABLE(_S("Walk/Cruise modes", "Walk Mod"), walkAssistMenus),
   FIELD_SCROLLABLE(_S("Motor temperature", "Motor temp"), motorTempMenus),
   FIELD_SCROLLABLE(_S("Street mode", "Street mod"), streetModeMenus),
+  FIELD_SCROLLABLE("Trip stats", tripMenus),
 #ifndef SW102
   FIELD_SCROLLABLE("Variables", variablesMenus),
 #endif
   FIELD_SCROLLABLE("Various", variousMenus),
-  FIELD_SCROLLABLE("Display", displayMenus),
+#ifndef SW102  
   FIELD_SCROLLABLE("Technical infos", technicalMenus),
+#endif  
   FIELD_END };
 
 static Field configRoot = FIELD_SCROLLABLE(_S("Configurations", "Config"), topMenus);
@@ -307,8 +326,14 @@ static Field configRoot = FIELD_SCROLLABLE(_S("Configurations", "Config"), topMe
 uint8_t ui8_g_configuration_display_reset_to_defaults = 0;
 uint32_t ui32_g_configuration_wh_100_percent = 0;
 uint8_t ui8_g_configuration_display_reset_bluetooth_peers = 0;
+uint8_t ui8_g_configuration_trip_reset = 0;
+uint16_t ui16_g_trip_time = 0;
+bool g_configscreen_state = false;
 
 static void configScreenOnEnter() {
+	g_configscreen_state = true;
+	ui_vars.ui8_riding_mode = OFF_MODE;
+	ble_config_update = true;
 	// Set the font preference for this screen
 	editable_label_font = &CONFIGURATIONS_TEXT_FONT;
 	editable_value_font = &CONFIGURATIONS_TEXT_FONT;
@@ -316,18 +341,20 @@ static void configScreenOnEnter() {
 }
 
 static void configExit() {
-  //prepare_torque_sensor_calibration_table();
-
+    //out of configscreen
+	g_configscreen_state = false;
+	if (ui_vars.ui8_assist_level > ui_vars.ui8_number_of_assist_levels){
+	ui_vars.ui8_riding_mode = POWER_ASSIST_MODE;}else {ui_vars.ui8_riding_mode = eMTB_ASSIST_MODE;}
 	// save the variables on EEPROM
 	eeprom_write_variables();
 	set_conversions(); // we just changed units
-
+    //prepare_torque_sensor_calibration_table();
     update_battery_power_usage_label();
 	// we need to update riding_mode
     ui_vars.ui8_riding_mode = ui_vars.ui8_riding_mode_ui;
 	// send the configurations to TSDZ2
-  //if (g_motor_init_state == MOTOR_INIT_READY)
-   // g_motor_init_state = MOTOR_INIT_SET_CONFIGURATIONS;
+    if (g_motor_init_state == MOTOR_INIT_READY)
+       g_motor_init_state = MOTOR_UPDATE_CONFIG;
 }
 
 static void configPreUpdate() {

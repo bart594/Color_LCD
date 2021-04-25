@@ -22,6 +22,7 @@
 #define eMTB_ASSIST_MODE                          2
 #define WALK_ASSIST_MODE                          3
 #define CRUISE_MODE                               4
+#define MOTOR_CALIBRATION_MODE                    5
 
 // optional ADC function
 #define NOT_IN_USE                                0
@@ -30,12 +31,14 @@
 
 // uart packet types
 #define UART_PACKET_REGULAR          			  1
-#define UART_PACKET_CONFIG						  2   
+#define UART_PACKET_CONFIG						  2 
+ 
 
 typedef enum {
   MOTOR_INIT_NOT_READY,
   MOTOR_INIT_READY,
-  MOTOR_INIT_SEND_CONFIG,
+  MOTOR_INIT_STARTUP_CONFIG,
+  MOTOR_UPDATE_CONFIG,
   MOTOR_INIT_ERROR,
 } motor_init_state_t;
 
@@ -93,7 +96,6 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_battery_max_current;
 	uint8_t ui8_motor_max_current;
     uint8_t ui8_battery_current_min_adc;
-	uint8_t ui8_ramp_up_amps_per_second_x10;
 	uint16_t ui16_battery_low_voltage_cut_off_x10;
 	uint16_t ui16_battery_voltage_reset_wh_counter_x10;
 	uint16_t ui16_battery_pack_resistance_x1000;
@@ -110,10 +112,8 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_lcd_backlight_on_brightness;
 	uint8_t ui8_lcd_backlight_off_brightness;
 	uint32_t ui32_odometer_x10;
-	uint32_t ui32_trip_x10;
+
 	uint8_t ui8_riding_mode;
-	//uint8_t ui8_cadence_sensor_mode;
-	//uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
 	uint8_t ui8_optional_ADC_function;
 	uint8_t ui8_target_battery_max_power_div25;	
 	uint8_t ui8_motor_acceleration;
@@ -124,12 +124,30 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_soft_start_feature_enabled;
     uint8_t ui8_hybrid_mode_enabled;
 	uint8_t ui8_lights_configuration;
+	
+	uint32_t ui32_trip_distance_x1000;
+	uint32_t ui32_trip_distance_x100;
+	uint32_t ui32_trip_time;
+	uint16_t ui16_trip_avg_speed_x10;
+	uint16_t ui16_trip_max_speed_x10;
+	uint16_t ui16_battery_current_avg;
+	uint16_t ui16_battery_power_avg;
+	uint16_t ui16_pedal_power_avg; 
+	uint16_t ui16_pedal_cadence_avg;	
+	uint16_t ui16_battery_energy_h_km_avg_x10;
+	
 	uint8_t ui8_lights;
 	uint8_t ui8_braking;
 	uint8_t ui8_walk_assist;
+
     uint8_t ui8_torque_sensor_calibration_feature_enabled;
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
 	uint16_t ui16_torque_sensor_calibration_ble_table[6][2];
+
+    uint8_t ui8_hall_ref_angles[6];
+	uint8_t ui8_hall_counter_offset[6];
+	uint16_t ui16_hall_calib_cnt[6];
+		
 	uint8_t ui8_street_mode_enabled;
 	uint8_t ui8_street_mode_feature_enabled;
 	uint8_t ui8_street_mode_enabled_on_startup;
@@ -147,7 +165,7 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_nav_info;
 	uint8_t ui8_nav_info_extra;
 	uint8_t ui8_motor_current_min_adc;
-	
+	uint8_t ui8_calibration_duty_cycle_target;
 } rt_vars_t;
 
 /* Selector positions for customizable fields
@@ -181,7 +199,6 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_motor_speed_erps;
 	uint8_t ui8_foc_angle;
 	uint8_t ui8_motor_hall_sensors;
-	uint8_t ui8_pas_pedal_right;
 	uint8_t ui8_motor_temperature;
 	uint32_t ui32_wheel_speed_sensor_tick_counter;
 	uint32_t ui32_wheel_speed_sensor_tick_counter_offset;
@@ -206,11 +223,13 @@ typedef struct ui_vars_struct {
 	uint32_t ui32_wh_x10_offset;
 	uint32_t ui32_wh_x10_100_percent;
 	uint8_t ui8_battery_soc_enable;
+	uint8_t ui8_time_field_enable;
 	uint8_t ui8_target_max_battery_power_div25;
+	uint16_t ui16_target_max_battery_power;
 	uint8_t ui8_battery_max_current;
 	uint8_t ui8_motor_max_current;
 	uint8_t ui8_motor_current_min_adc;
-	uint8_t ui8_ramp_up_amps_per_second_x10;
+
 	uint16_t ui16_battery_low_voltage_cut_off_x10;
 	uint16_t ui16_battery_voltage_reset_wh_counter_x10;
 	uint16_t ui16_battery_pack_resistance_x1000;
@@ -229,9 +248,19 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_lcd_backlight_on_brightness;
 	uint8_t ui8_lcd_backlight_off_brightness;
 	uint32_t ui32_odometer_x10;
-	uint32_t ui32_trip_x10;
-	uint32_t battery_energy_km_value_x100;
 
+	uint32_t ui32_trip_distance_x1000;
+	uint32_t ui32_trip_distance_x100;
+	uint32_t ui32_trip_time;
+	uint16_t ui16_trip_avg_speed_x10;
+	uint16_t ui16_trip_max_speed_x10;
+	uint32_t battery_energy_km_value_x100;
+	uint16_t ui16_battery_current_avg;
+	uint16_t ui16_battery_power_avg;
+	uint16_t ui16_pedal_power_avg; 
+	uint16_t ui16_pedal_cadence_avg;
+	uint16_t ui16_battery_energy_h_km_avg_x10;
+	
 	uint8_t ui8_lights;
 	uint8_t ui8_braking;
 	uint8_t ui8_walk_assist;
@@ -239,8 +268,6 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_riding_mode;
 	uint8_t ui8_riding_mode_ui;
 	//uint8_t ui8_riding_mode_embt;
-	//uint8_t ui8_cadence_sensor_mode;
-	//uint16_t ui16_cadence_sensor_pulse_high_percentage_x10;
 	uint8_t ui8_optional_ADC_function;
 	uint8_t ui8_target_battery_max_power_div25;
 	uint8_t ui8_motor_acceleration;
@@ -252,7 +279,8 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_lights_configuration;
 	uint8_t ui8_field_weakening_enabled;
 	uint8_t ui8_field_weakening_current_adc;
-	
+	uint8_t ui8_calibration_duty_cycle_target;
+
 	uint32_t ui32_nav_turn_distance;
 	uint32_t ui32_nav_total_distance;
 	uint32_t ui32_nav_total_turn_distance;
@@ -262,6 +290,9 @@ typedef struct ui_vars_struct {
 	
 	uint8_t ui8_torque_sensor_calibration_feature_enabled;
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
+	
+	uint8_t ui8_hall_ref_angles[6];
+	uint8_t ui8_hall_counter_offset[6];
 
 	uint8_t field_selectors[NUM_CUSTOMIZABLE_FIELDS]; // this array is opaque to the app, but the screen layer uses it to store which field is being displayed (it is stored to EEPROM)
 	uint8_t graphs_field_selectors[3]; // 3 screen main pages
