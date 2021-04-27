@@ -19,6 +19,7 @@
 #include "state.h"
 #include "ble_conn_state.h"
 
+
 // define to enable the (not yet used) serial service
  #define BLE_SERIAL
 
@@ -35,10 +36,10 @@
 #define PERIPHERAL_LINK_COUNT           1                                           /**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
 
 #define DEVICE_NAME                     "OS-EBike"                                  /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME               "https://github.com/OpenSource-EBike-firmware"
+#define MANUFACTURER_NAME               "https://github.com/OpenSourceEBike"
 
-#define APP_ADV_INTERVAL                40                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 100 ms). */
-#define APP_ADV_TIMEOUT_IN_SECONDS      180                                         /**< The advertising timeout (in units of seconds). */
+#define APP_ADV_INTERVAL                40                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
+#define APP_ADV_TIMEOUT_IN_SECONDS      300                                         /**< The advertising timeout (in units of seconds). */
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(500, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(1000, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
@@ -50,9 +51,12 @@
 
 #define NO_PACKET					    0
 #define PACKET_STATUS					1
-#define PACKET_CONFIG					2
-#define PACKET_MOTOR					3
+#define PACKET_DEBUG					2
+#define PACKET_CONFIG					3
+#define PACKET_MOTOR					4
+#define PACKET_TRIP_STATS				5
 
+#define DATA_LENGHT_VALUE				120
 
 #ifdef BLE_SERIAL
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
@@ -63,15 +67,42 @@ nrf_ble_gatt_t							m_gatt;
 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 
-static uint8_t 							ble_command = PACKET_STATUS;
+static uint8_t 							ble_command = NO_PACKET;
 volatile bool 							ble_config_update = false;
-
+uint8_t 								tx_data_buffer[DATA_LENGHT_VALUE] = {0};
+uint8_t 							    tx_data[BLE_NUS_MAX_DATA_LEN] = {0};
+static bool								ble_gap_adv_started  = false;
+volatile uint32_t 						ui32_g_ble_time_seconds;
+  
 static ble_uuid_t                       m_adv_uuids[] = {
 #ifdef BLE_SERIAL
     {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
 #endif
 };  /**< Universally unique service identifier. */
 
+
+/**@brief This function will disconnect if connected, and stop advertising if advertising. */
+void disconnect_stop_adv(void)
+{
+    ret_code_t err_code;
+    
+	//  stop advertising
+	if(ble_gap_adv_started)
+    err_code = sd_ble_gap_adv_stop();
+	
+    if (err_code != NRF_ERROR_INVALID_STATE)
+    {
+        APP_ERROR_CHECK(err_code);
+    } 
+        
+        // If connected, disconnect.
+	if(m_conn_handle != BLE_CONN_HANDLE_INVALID)
+	{
+	  
+	  err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+	        
+	}
+}
 
 /**@brief Function for the GAP initialization.
  *
@@ -110,9 +141,23 @@ static void gap_params_init(void)
  static void nus_data_handler(ble_nus_t * p_nus, uint8_t * p_data, uint16_t length)
 {
 	
-	if(p_data[0] == 'N'){ble_command = NO_PACKET;} 
+	if(p_data[0] == 'e'){
+	uint32_t temp = ((((uint32_t) p_data[3]) << 16) + (((uint32_t) p_data[2]) << 8) + ((uint32_t) p_data[1]));
+	if(temp <  86400) //we don't need some garbage instead time
+	ui32_g_ble_time_seconds  = ((((uint32_t) p_data[3]) << 16) + (((uint32_t) p_data[2]) << 8) + ((uint32_t) p_data[1]));
+	ble_command = NO_PACKET;
+	} 
 	if(p_data[0] == 'R'){ble_command = PACKET_STATUS;}
+	if(p_data[0] == 'D'){ble_command = PACKET_DEBUG;}
+	if(p_data[0] == 'T'){
+	ble_command = PACKET_TRIP_STATS;
+	}
+	if(p_data[0] == 'T' && p_data[1] == 't'){    //trip data reset
+	ble_reset_trip_stats();
+	}	
 	if(p_data[0] == 'C'){ble_command = PACKET_CONFIG;}
+	if(p_data[0] == 'C' && p_data[1] == 'c'){
+	ble_config_defaults();}  					//reset to defaults
 	if(p_data[0] == 'M'){
 	ble_command = PACKET_MOTOR;
 	ble_motor_test(p_data);
@@ -217,10 +262,11 @@ static void conn_params_init(void)
     cp_init.disconnect_on_fail             = false;
     cp_init.evt_handler                    = on_conn_params_evt;
     cp_init.error_handler                  = conn_params_error_handler;
-
+	
     APP_ERROR_CHECK(ble_conn_params_init(&cp_init));
 
     APP_ERROR_CHECK(ble_advertising_start(BLE_ADV_MODE_FAST));
+	
 }
 
 
@@ -234,9 +280,13 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
     switch (ble_adv_evt)
     {
+	   
         case BLE_ADV_EVT_FAST:
+			ble_gap_adv_started = true;
             break;
         case BLE_ADV_EVT_IDLE:
+			 ble_gap_adv_started = false; 
+		     //APP_ERROR_CHECK(ble_advertising_start(BLE_ADV_MODE_FAST));
             break;
         default:
             break;
@@ -334,8 +384,8 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
  */
 static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 {
-  ble_conn_state_on_ble_evt(p_ble_evt);
-  pm_on_ble_evt(p_ble_evt);						   
+    ble_conn_state_on_ble_evt(p_ble_evt);
+    pm_on_ble_evt(p_ble_evt);						   
     ble_conn_params_on_ble_evt(p_ble_evt);
 #ifdef BLE_SERIAL
     ble_nus_on_ble_evt(&m_nus, p_ble_evt);
@@ -421,7 +471,7 @@ static void advertising_init(void)
     options.ble_adv_fast_enabled  = true;
     options.ble_adv_fast_interval = APP_ADV_INTERVAL;
     options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
-
+	
     APP_ERROR_CHECK(ble_advertising_init(&advdata, &scanrsp, &options, on_adv_evt, NULL));
 }
 
@@ -543,6 +593,7 @@ static void peer_init() {
   APP_ERROR_CHECK(err_code);
 }
 
+
 void ble_init(void)
 {
   ble_stack_init();
@@ -555,201 +606,316 @@ void ble_init(void)
 }
 
 
-void ble_uart_send(rt_vars_t *rt_vars) {
- static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
- char data_arr[10] = {"NOP"}; 
+void ble_uart_send(ui_vars_t *ui_vars) {
+ 
+ char data_arr[12] = {"eBike"}; 
+ uint8_t hours;
+ uint8_t minutes;
+ uint8_t ui16_temp;
  
  switch (ble_command)
       {
         case NO_PACKET:
-         
-        ble_nus_string_send(&m_nus, data_arr, 10);
+         						
+			// Calculate time
+			if(ui_vars->ui32_calc_time_seconds < 86400){
+            hours = ui_vars->ui32_calc_time_seconds / 3600;
+            minutes = (ui_vars->ui32_calc_time_seconds % 3600) / 60;
+			sprintf(data_arr, "eBike %d:%02d", hours, minutes);
+	        }
+ 		    ble_nus_string_send(&m_nus, data_arr, 12);
+				
 		break;
 		
 		case PACKET_STATUS:
-		data_array[0] = 0x52;  // "R" 
-		data_array[1] = rt_vars->ui8_riding_mode;
-		data_array[2] = rt_vars->ui8_assist_level;
-		data_array[3] = (uint8_t) (rt_vars->ui16_wheel_speed_x10 & 0xff);
-		data_array[4] = (uint8_t) (rt_vars->ui16_wheel_speed_x10 >> 8);
-		data_array[5] = rt_vars->ui8_pedal_cadence_filtered;
-		data_array[6] = rt_vars->ui8_motor_temperature;
-		data_array[7] = (uint8_t) (rt_vars->ui16_pedal_power_filtered & 0xff);
-		data_array[8] = (uint8_t) (rt_vars->ui16_pedal_power_filtered >> 8);
-		data_array[9] = (uint8_t) (rt_vars->ui16_battery_voltage_soc_x10 & 0xff);
-		data_array[10] = (uint8_t) (rt_vars->ui16_battery_voltage_soc_x10 >> 8);
-		data_array[11] = (uint8_t) ((rt_vars->ui16_battery_current_filtered_x5 * 2) & 0xff);
-		data_array[12] = (uint8_t) ((rt_vars->ui16_battery_current_filtered_x5 * 2) >> 8);
-		data_array[13] = rt_vars->ui8_error_states;
-		uint16_t ui16_temp = rt_vars->ui32_wh_x10 / 10;
-		data_array[14] = (uint8_t) (ui16_temp & 0xff);
-		data_array[15] = (uint8_t) (ui16_temp >> 8);
-		data_array[16] = rt_vars->ui8_street_mode_feature_enabled;
-		
-		ble_nus_string_send(&m_nus, data_array, 17);
-		
-		data_array[0] = 0x44;  // "D" 
-		data_array[1] = rt_vars->ui8_adc_throttle;
-		data_array[2] = rt_vars->ui8_throttle;
-		data_array[3] = (uint8_t) (rt_vars->ui16_adc_pedal_torque_sensor & 0xff);
-		data_array[4] = (uint8_t) (rt_vars->ui16_adc_pedal_torque_sensor >> 8);		
-		data_array[5] = rt_vars->ui8_duty_cycle;
-		data_array[6] = (uint8_t) (rt_vars->ui16_motor_speed_erps & 0xff);
-		data_array[7] = (uint8_t) (rt_vars->ui16_motor_speed_erps >> 8);		
-		data_array[8] = rt_vars->ui8_foc_angle;		
-		data_array[9] = (uint8_t) (rt_vars->ui16_pedal_torque_x100 & 0xff);
-		data_array[10] = (uint8_t) (rt_vars->ui16_pedal_torque_x100 >> 8);
-		uint16_t ui16_temp_wh_km = rt_vars->battery_energy_h_km.ui32_value_x10;
-		data_array[11] = (uint8_t) (ui16_temp_wh_km & 0xff);
-		data_array[12] = (uint8_t) (ui16_temp_wh_km >> 8);		
-		data_array[13] = (uint8_t) (rt_vars->ui16_pedal_weight & 0xff);
-		data_array[14] = (uint8_t) (rt_vars->ui16_pedal_weight >> 8);
-		
-		ble_nus_string_send(&m_nus, data_array, 15);
 
-        break;
+		tx_data[0] = 0x52;  // "R" 
+		tx_data[1] = ui_vars->ui8_riding_mode;
+		tx_data[2] = ui_vars->ui8_assist_level;
+		tx_data[3] = (uint8_t) (ui_vars->ui16_wheel_speed_x10 & 0xff);
+		tx_data[4] = (uint8_t) (ui_vars->ui16_wheel_speed_x10 >> 8);
+		tx_data[5] = ui_vars->ui8_pedal_cadence_filtered;
+		tx_data[6] = ui_vars->ui8_motor_temperature;
+		tx_data[7] = (uint8_t) (ui_vars->ui16_pedal_power_filtered & 0xff);
+		tx_data[8] = (uint8_t) (ui_vars->ui16_pedal_power_filtered >> 8);
+		tx_data[9] = (uint8_t) (ui_vars->ui16_battery_voltage_soc_x10 & 0xff);
+		tx_data[10] = (uint8_t) (ui_vars->ui16_battery_voltage_soc_x10 >> 8);
+		tx_data[11] = (uint8_t) ((ui_vars->ui16_battery_current_filtered_x5 * 2) & 0xff);
+		tx_data[12] = (uint8_t) ((ui_vars->ui16_battery_current_filtered_x5 * 2) >> 8);
+		tx_data[13] = ui_vars->ui8_error_states;
+		ui16_temp = ui_vars->ui32_wh_x10 / 10;
+		tx_data[14] = (uint8_t) (ui16_temp & 0xff);
+		tx_data[15] = (uint8_t) (ui16_temp >> 8);
+		tx_data[16] = (uint8_t) (ui16_temp >> 16);
+		tx_data[17] = ui_vars->ui8_street_mode_feature_enabled;
+		ui16_temp = ui_vars->ui16_battery_estimated_range_x10;
+		tx_data[18] = (uint8_t) (ui16_temp & 0xff);
+		tx_data[19] = (uint8_t) (ui16_temp >> 8);
+		  
+		  if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+			{
+				ret_code_t err_code;
+				err_code = ble_nus_string_send(&m_nus, tx_data, 20);
+				if (err_code == NRF_SUCCESS)
+				{
+				ble_command = PACKET_DEBUG;
+				}
+			}		
+		break;
+		
+		case PACKET_DEBUG:
+		
+		tx_data[0] = 0x44;  // "D" 
+		tx_data[1] = ui_vars->ui8_adc_throttle;
+		tx_data[2] = ui_vars->ui8_throttle;
+		tx_data[3] = (uint8_t) (ui_vars->ui16_adc_pedal_torque_sensor & 0xff);
+		tx_data[4] = (uint8_t) (ui_vars->ui16_adc_pedal_torque_sensor >> 8);		
+		tx_data[5] = ui_vars->ui8_duty_cycle;
+		tx_data[6] = (uint8_t) (ui_vars->ui16_motor_speed_erps & 0xff);
+		tx_data[7] = (uint8_t) (ui_vars->ui16_motor_speed_erps >> 8);		
+		tx_data[8] = ui_vars->ui8_foc_angle;		
+		tx_data[9] = (uint8_t) (ui_vars->ui16_pedal_torque_x100 & 0xff);
+		tx_data[10] = (uint8_t) (ui_vars->ui16_pedal_torque_x100 >> 8);
+		ui16_temp = (uint16_t) ui_vars->battery_energy_h_km_ui32_value_x10;
+		tx_data[11] = (uint8_t) (ui16_temp & 0xff);
+		tx_data[12] = (uint8_t) (ui16_temp >> 8);		
+		tx_data[13] = (uint8_t) (ui_vars->ui16_pedal_weight & 0xff);
+		tx_data[14] = (uint8_t) (ui_vars->ui16_pedal_weight >> 8);
+		
+		  if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+			{
+				ret_code_t err_code;
+				uint8_t temp_cnt = 0;
+				
+				err_code = ble_nus_string_send(&m_nus, tx_data, 15);
+				if (err_code == NRF_SUCCESS)
+				{
+				if (++temp_cnt >=10){
+				temp_cnt = 0;
+				ble_command = PACKET_TRIP_STATS;
+				}else{ble_command = PACKET_STATUS;}
+				}
+			}
+	
+		break;
+		
+		case PACKET_TRIP_STATS:
+		
+		tx_data[0] = 0x54;  // "T" 
+	    ui16_temp = ui_vars->ui32_trip_time;
+        tx_data[1] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[2] = (uint8_t) (ui16_temp >> 8);
+		tx_data[3] = (uint8_t) (ui16_temp >> 16);	
+        ui16_temp = (ui_vars->ui32_trip_distance_x100);
+        tx_data[4] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[5] = (uint8_t) (ui16_temp >> 8);
+        tx_data[6] = (uint8_t) (ui16_temp >> 16);		
+        ui16_temp = ui_vars->ui16_trip_avg_speed_x10;
+        tx_data[7] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[8] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_trip_max_speed_x10;
+        tx_data[9] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[10] = (uint8_t) (ui16_temp >> 8);		
+		ui16_temp = ui_vars->ui16_battery_current_avg;
+        tx_data[11] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[12] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_battery_power_avg;
+        tx_data[13] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[14] = (uint8_t) (ui16_temp >> 8);	
+        ui16_temp = ui_vars->ui16_pedal_power_avg;
+        tx_data[15] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[16] = (uint8_t) (ui16_temp >> 8);
+        tx_data[17] = (uint8_t) ui_vars->ui16_pedal_cadence_avg;
+        ui16_temp = ui_vars->ui16_battery_energy_h_km_avg_x100;		
+        tx_data[18] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[19] = (uint8_t) (ui16_temp >> 8);
+
+		  if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+			{
+				ret_code_t err_code;
+				err_code = ble_nus_string_send(&m_nus, tx_data, 20);
+				if (err_code == NRF_SUCCESS)
+				{
+				ble_command = PACKET_STATUS;
+				}
+			}		
+		
+		break;
 
 		case PACKET_CONFIG:
 
-		data_array[0] = 0x43; 		// C = config
-		data_array[1] = 1;  			//first chunk of config data
-        data_array[2] = rt_vars->ui8_motor_type;
-        data_array[3] = rt_vars->ui8_motor_temperature_min_value_to_limit;
-        data_array[4] = rt_vars->ui8_motor_temperature_max_value_to_limit;
-        data_array[5] = rt_vars->ui8_motor_acceleration;
-        data_array[6] = rt_vars->ui8_number_of_assist_levels; 	
-        data_array[7] = rt_vars->ui8_eMTB_assist_level; 		
-        data_array[8] = rt_vars->ui8_torque_sensor_calibration_feature_enabled;
-        data_array[9] =  rt_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100;
-        data_array[10] =  rt_vars->ui8_optional_ADC_function;
-        data_array[11] =  rt_vars->ui8_assist_without_pedal_rotation_threshold;
-        data_array[12] = rt_vars->ui8_lights_configuration;
-        data_array[13] = (uint8_t) (rt_vars->ui16_wheel_perimeter & 0xff);
-        data_array[14] = (uint8_t) (rt_vars->ui16_wheel_perimeter >> 8);
-        data_array[15] = rt_vars->ui8_walk_assist_feature_enabled;
-        data_array[16] = (uint8_t) (rt_vars->ui16_battery_voltage_reset_wh_counter_x10 & 0xff);
-        data_array[17] = (uint8_t)(rt_vars->ui16_battery_voltage_reset_wh_counter_x10 >> 8);
-        data_array[18] = rt_vars->ui8_battery_max_current;
-        data_array[19] = rt_vars->ui8_target_max_battery_power_div25;
-		
-		ble_nus_string_send(&m_nus, data_array, 20);
-		
-		data_array[0] = 0x43;
-		data_array[1] = 2;  			//second  chunk of config data
-        data_array[2] = (uint8_t) (rt_vars->ui16_battery_pack_resistance_x1000 & 0xff);
-        data_array[3] = (uint8_t) (rt_vars->ui16_battery_pack_resistance_x1000 >> 8);
-        data_array[4] = (uint8_t) (rt_vars->ui16_battery_low_voltage_cut_off_x10 & 0xff);
-        data_array[5] = (uint8_t) (rt_vars->ui16_battery_low_voltage_cut_off_x10 >> 8);
-        data_array[6] = rt_vars->ui8_street_mode_feature_enabled;
-        data_array[7] = rt_vars->ui8_street_mode_throttle_enabled;
-        data_array[8] = rt_vars->ui8_street_mode_power_limit_div25;
-        data_array[9] = rt_vars->ui8_street_mode_speed_limit;
-		data_array[10] = rt_vars->ui8_field_weakening_enabled;
-		data_array[11] = rt_vars->ui8_field_weakening_current_adc;
-		data_array[12] = rt_vars->ui8_hybrid_mode_enabled;
-		data_array[13] = rt_vars->ui8_soft_start_feature_enabled;
-        data_array[14] = rt_vars->ui8_battery_soc_enable;		
-		data_array[15] = rt_vars->ui8_motor_current_min_adc;
-		data_array[16] = rt_vars->ui8_wheel_max_speed;
-		
-        ble_nus_string_send(&m_nus, data_array, 20);
-		
-		data_array[0] = 0x43;
-		data_array[1] = 3;  			//third  chunk of config data
+		tx_data_buffer[0] = 0x43; 		// C = config
+        tx_data_buffer[1] = 1;
+		tx_data_buffer[2] = ui_vars->ui8_motor_type;
+        tx_data_buffer[3] = ui_vars->ui8_motor_temperature_min_value_to_limit;
+        tx_data_buffer[4] = ui_vars->ui8_motor_temperature_max_value_to_limit;
+        tx_data_buffer[5] = ui_vars->ui8_motor_acceleration;
+        tx_data_buffer[6] = ui_vars->ui8_number_of_assist_levels; 	
+        tx_data_buffer[7] = ui_vars->ui8_eMTB_assist_level; 		
+        tx_data_buffer[8] = ui_vars->ui8_torque_sensor_calibration_feature_enabled;
+        tx_data_buffer[9] =  ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100;
+        tx_data_buffer[10] =  ui_vars->ui8_optional_ADC_function;
+        tx_data_buffer[11] =  ui_vars->ui8_assist_without_pedal_rotation_threshold;
+        tx_data_buffer[12] = ui_vars->ui8_lights_configuration;
+        tx_data_buffer[13] = (uint8_t) (ui_vars->ui16_wheel_perimeter & 0xff);
+        tx_data_buffer[14] = (uint8_t) (ui_vars->ui16_wheel_perimeter >> 8);
+        tx_data_buffer[15] = ui_vars->ui8_walk_assist_feature_enabled;
+        tx_data_buffer[16] = (uint8_t) (ui_vars->ui16_battery_voltage_reset_wh_counter_x10 & 0xff);
+        tx_data_buffer[17] = (uint8_t)(ui_vars->ui16_battery_voltage_reset_wh_counter_x10 >> 8);
+        tx_data_buffer[18] = ui_vars->ui8_battery_max_current;
+        tx_data_buffer[19] = ui_vars->ui8_target_max_battery_power_div25;
+
+        tx_data_buffer[20] = 0x43;
+		tx_data_buffer[21] = 2;
+		tx_data_buffer[22] = (uint8_t) (ui_vars->ui16_battery_pack_resistance_x1000 & 0xff);
+		tx_data_buffer[23] = (uint8_t) (ui_vars->ui16_battery_pack_resistance_x1000 >> 8);
+        tx_data_buffer[24] = (uint8_t) (ui_vars->ui16_battery_low_voltage_cut_off_x10 & 0xff);
+        tx_data_buffer[25] = (uint8_t) (ui_vars->ui16_battery_low_voltage_cut_off_x10 >> 8);
+        tx_data_buffer[26] = ui_vars->ui8_street_mode_feature_enabled;
+        tx_data_buffer[27] = ui_vars->ui8_street_mode_throttle_enabled;
+        tx_data_buffer[28] = ui_vars->ui8_street_mode_power_limit_div25;
+        tx_data_buffer[29] = ui_vars->ui8_street_mode_speed_limit;
+		tx_data_buffer[30] = ui_vars->ui8_field_weakening_enabled;
+		tx_data_buffer[31] = ui_vars->ui8_field_weakening_current_adc;
+		tx_data_buffer[32] = ui_vars->ui8_hybrid_mode_enabled;
+		tx_data_buffer[33] = ui_vars->ui8_soft_start_feature_enabled;
+        tx_data_buffer[34] = ui_vars->ui8_time_field_enable;		
+		tx_data_buffer[35] = ui_vars->ui8_motor_current_min_adc;
+		tx_data_buffer[36] = ui_vars->wheel_max_speed_x10 / 10;
+		tx_data_buffer[37] = (uint8_t) (ui_vars->ui32_wh_x10_100_percent & 0xff);
+		tx_data_buffer[38] = (uint8_t) (ui_vars->ui32_wh_x10_100_percent >> 8);
+		tx_data_buffer[39] = (uint8_t) (ui_vars->ui32_wh_x10_100_percent  >> 16);		
+
+        tx_data_buffer[40] = 0x43;
+		tx_data_buffer[41] = 3;
         
 		for (int i=0;i<5;i++)
-            data_array[2+i] = rt_vars->ui8_target_peak_battery_power_div25[i];
+            tx_data_buffer[42+i] = ui_vars->ui8_target_peak_battery_power_div25[i];
         
 		for (int i=0;i<5;i++)
-            data_array[7+i] = rt_vars->ui8_motor_acceleration_level[i];	
+            tx_data_buffer[47+i] = ui_vars->ui8_motor_acceleration_level[i];	
 		
 		for (int i=0;i<5;i++)
-			data_array[12+i] = rt_vars->ui8_walk_assist_level_factor[i];			
-
-		ble_nus_string_send(&m_nus, data_array, 20);
+			tx_data_buffer[52+i] = ui_vars->ui8_walk_assist_level_factor[i];			
 		
+		tx_data_buffer[57] = (uint8_t) (ui_vars->ui32_wh_x10_offset & 0xff);
+		tx_data_buffer[58] = (uint8_t) (ui_vars->ui32_wh_x10_offset >> 8);
+		tx_data_buffer[59] = (uint8_t) (ui_vars->ui32_wh_x10_offset >> 16);
 		
-		data_array[0] = 0x43;
-		data_array[1] = 4;  			//fourth  chunk of config data
-		
-		for (int i=0;i<5;i++)
-            data_array[2+i] = rt_vars->ui8_assist_level_power_assist[i];
+		tx_data_buffer[60] = 0x43;
+		tx_data_buffer[61] = 4;
 		
 		for (int i=0;i<5;i++)
-            data_array[7+i] = rt_vars->ui8_assist_level_torque_assist[i];			
-	    data_array[12] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent & 0xff);
-		data_array[13] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent >> 8);
-		data_array[14] = (uint8_t) (rt_vars->ui32_wh_x10_100_percent  >> 16); 
-		data_array[15] = (uint8_t) (rt_vars->ui32_wh_x10_offset & 0xff);
-		data_array[16] = (uint8_t) (rt_vars->ui32_wh_x10_offset >> 8);
-		data_array[17] = (uint8_t) (rt_vars->ui32_wh_x10_offset >> 16);		
-
-		ble_nus_string_send(&m_nus, data_array, 20);
+            tx_data_buffer[62+i] = ui_vars->ui8_assist_level_power_assist[i];
 		
-		data_array[0] = 0x43;
-		data_array[1] = 5;  			//fifth chunk of config data
+		for (int i=0;i<5;i++)
+            tx_data_buffer[67+i] = ui_vars->ui8_assist_level_torque_assist[i];			
+		tx_data_buffer[72] = ui_vars->ui8_lcd_power_off_time_minutes;
+		tx_data_buffer[73] = ui_vars->ui8_units_type;
+		tx_data_buffer[74] = ui_vars->ui8_energy_saving_mode_level;
+		tx_data_buffer[75] = 0;
+		tx_data_buffer[76] = 0;
+		tx_data_buffer[77] = 0;
+		tx_data_buffer[78] = 0;
+		tx_data_buffer[79] = 0;
+			
+		tx_data_buffer[80] = 0x43;
+		tx_data_buffer[81] = 5;
 		for (uint8_t i = 0; i < 6; i++) 
-        data_array[2+i] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[i][0]); //kg_weight
+        tx_data_buffer[82+i] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[i][0]); //kg_weight
         		
-		data_array[8] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[0][1] & 0xff); // adc_values
-        data_array[9] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[0][1] >> 8);
-		data_array[10] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[1][1] & 0xff); // adc_values
-        data_array[11] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[1][1] >> 8);
-		data_array[12] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[2][1] & 0xff); // adc_values
-        data_array[13] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[2][1] >> 8);
-		data_array[14] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[3][1] & 0xff); // adc_values
-        data_array[15] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[3][1] >> 8);
-		data_array[16] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[4][1] & 0xff); // adc_values
-        data_array[17] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[4][1] >> 8);	
-		data_array[18] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[5][1] & 0xff); // adc_values
-        data_array[19] = (uint8_t) (rt_vars->ui16_torque_sensor_calibration_ble_table[5][1] >> 8);	
+		tx_data_buffer[88] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[0][1] & 0xff); // adc_values
+        tx_data_buffer[89] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[0][1] >> 8);
+		tx_data_buffer[90] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[1][1] & 0xff); // adc_values
+        tx_data_buffer[91] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[1][1] >> 8);
+		tx_data_buffer[92] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[2][1] & 0xff); // adc_values
+        tx_data_buffer[93] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[2][1] >> 8);
+		tx_data_buffer[94] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[3][1] & 0xff); // adc_values
+        tx_data_buffer[95] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[3][1] >> 8);
+		tx_data_buffer[96] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[4][1] & 0xff); // adc_values
+        tx_data_buffer[97] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[4][1] >> 8);	
+		tx_data_buffer[98] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[5][1] & 0xff); // adc_values
+        tx_data_buffer[99] = (uint8_t) (ui_vars->ui16_torque_sensor_calibration_ble_table[5][1] >> 8);	
 
-		ble_nus_string_send(&m_nus, data_array, 20);
-		
-		data_array[0] = 0x43;
-		data_array[1] = 6;  			//sixth chunk of config data
+		tx_data_buffer[100] = 0x43;
+		tx_data_buffer[101] = 6;
 		for (uint8_t i = 0; i < 6; i++) 
-        data_array[2+i] = rt_vars->ui8_hall_ref_angles[i];
+        tx_data_buffer[102+i] = ui_vars->ui8_hall_ref_angles[i];
+		
 		for (uint8_t i = 0; i < 6; i++) 		
-		data_array[8+i] = rt_vars->ui8_hall_counter_offset[i]; 
-
-		ble_nus_string_send(&m_nus, data_array, 20);		
+		tx_data_buffer[108+i] = ui_vars->ui8_hall_counter_offset[i]; 
+		tx_data_buffer[114] = 0;
+		tx_data_buffer[115] = 0;		
+		tx_data_buffer[116] = 0;
+		tx_data_buffer[117] = 0;
+		tx_data_buffer[118] = 0;
+		tx_data_buffer[119] = 0;
+		
+		  if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+			{
+				ret_code_t err_code;
+				err_code = ble_nus_send_file(&m_nus, tx_data_buffer, DATA_LENGHT_VALUE, 20); //data lenght 120
+				if (err_code == NRF_SUCCESS)
+				{
+				}		
+			}
+		
+		ble_command = NO_PACKET;
 		
 		//sprintf(data_array, "D1,%d,%d,%d,!",    rt_vars->ui8_duty_cycle, rt_vars->ui16_pedal_torque_x100, rt_vars->ui16_adc_pedal_torque_sensor);
 	    //	ble_nus_string_send(&m_nus, data_array, strlen(data_array));
 
-          
         break;
 		
 		case PACKET_MOTOR:
 		
-		//uint16_t ui16_temp;
-		
-		data_array[0] = 0x4D;  // "M" 
-		data_array[1] = rt_vars->ui8_riding_mode;
-	    ui16_temp = rt_vars->ui16_hall_calib_cnt[0];
-        data_array[2] = (uint8_t) (ui16_temp & 0xff);
-        data_array[3] = (uint8_t) (ui16_temp >> 8);
-        ui16_temp = rt_vars->ui16_hall_calib_cnt[1];
-        data_array[4] = (uint8_t) (ui16_temp & 0xff);
-        data_array[5] = (uint8_t) (ui16_temp >> 8);
-        ui16_temp = rt_vars->ui16_hall_calib_cnt[2];
-        data_array[6] = (uint8_t) (ui16_temp & 0xff);
-        data_array[7] = (uint8_t) (ui16_temp >> 8);
-        ui16_temp = rt_vars->ui16_hall_calib_cnt[3];
-        data_array[8] = (uint8_t) (ui16_temp & 0xff);
-        data_array[9] = (uint8_t) (ui16_temp >> 8);
-        ui16_temp = rt_vars->ui16_hall_calib_cnt[4];
-        data_array[10] = (uint8_t) (ui16_temp & 0xff);
-        data_array[11] = (uint8_t) (ui16_temp >> 8);
-        ui16_temp = rt_vars->ui16_hall_calib_cnt[5];
-        data_array[12] = (uint8_t) (ui16_temp & 0xff);
-        data_array[13] = (uint8_t) (ui16_temp >> 8);
+		tx_data[0] = 0x4D;  // "M" 
+		tx_data[1] = ui_vars->ui8_riding_mode;
+	    ui16_temp = ui_vars->ui16_hall_calib_cnt[0];
+        tx_data[2] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[3] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_hall_calib_cnt[1];
+        tx_data[4] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[5] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_hall_calib_cnt[2];
+        tx_data[6] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[7] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_hall_calib_cnt[3];
+        tx_data[8] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[9] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_hall_calib_cnt[4];
+        tx_data[10] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[11] = (uint8_t) (ui16_temp >> 8);
+        ui16_temp = ui_vars->ui16_hall_calib_cnt[5];
+        tx_data[12] = (uint8_t) (ui16_temp & 0xff);
+        tx_data[13] = (uint8_t) (ui16_temp >> 8);
 
-		ble_nus_string_send(&m_nus, data_array, 20);
-		
+		  if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+			{
+				ret_code_t err_code;
+				err_code = ble_nus_string_send(&m_nus, tx_data, 14);
+				if (err_code == NRF_SUCCESS)
+				{
+				}
+			}
 		break;
+
 	  }
+	  
+}
+
+static void ble_config_defaults(){
+
+ui8_g_configuration_display_reset_to_defaults = 1;
+ble_command = PACKET_CONFIG;
+
+}
+static void ble_reset_trip_stats()
+{
+	 
+	  ui8_g_configuration_trip_reset = 1;
+	  ble_command = PACKET_TRIP_STATS;
+	  
 }
 
 static void ble_motor_test(uint8_t *p_data)
@@ -796,92 +962,104 @@ static void ble_config_set(uint8_t *p_data)
 	 ble_config_update = true;
 	 ui_vars_t *ui_vars = get_ui_vars();
 	 
-		if(p_data[1] == 0x01){
+	 static uint8_t data[20];
+	 memcpy(&data, p_data, 20);
+	 
+		if(data[1] == 0x01){
 	  
-      ui_vars->ui8_motor_type = p_data[2];
-      ui_vars->ui8_motor_temperature_min_value_to_limit = p_data[3];
-      ui_vars->ui8_motor_temperature_max_value_to_limit = p_data[4];
-      ui_vars->ui8_motor_acceleration = p_data[5];
-      ui_vars->ui8_number_of_assist_levels = p_data[6];
-      ui_vars->ui8_eMTB_assist_level = p_data[7];		
-      ui_vars->ui8_torque_sensor_calibration_feature_enabled = p_data[8];
-      ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100 = p_data[9]; 
-      ui_vars->ui8_optional_ADC_function = p_data[10]; 
-      ui_vars->ui8_assist_without_pedal_rotation_threshold = p_data[11]; 
-      ui_vars->ui8_lights_configuration = p_data[12]; 
-      ui_vars->ui16_wheel_perimeter = (((uint16_t) p_data[14]) << 8) + ((uint16_t) p_data[13]); 
-      ui_vars->ui8_walk_assist_feature_enabled = p_data[15]; 
-      ui_vars->ui16_battery_voltage_reset_wh_counter_x10 = (((uint16_t) p_data[17]) << 8) + ((uint16_t) p_data[16]); 
-      ui_vars->ui8_battery_max_current = p_data[18]; 
-      ui_vars->ui8_target_max_battery_power_div25 = p_data[19]; 
+      ui_vars->ui8_motor_type = data[2];
+      ui_vars->ui8_motor_temperature_min_value_to_limit = data[3];
+      ui_vars->ui8_motor_temperature_max_value_to_limit = data[4];
+      ui_vars->ui8_motor_acceleration = data[5];
+      ui_vars->ui8_number_of_assist_levels = data[6];
+      ui_vars->ui8_eMTB_assist_level = data[7];		
+      ui_vars->ui8_torque_sensor_calibration_feature_enabled = data[8];
+      ui_vars->ui8_pedal_torque_per_10_bit_ADC_step_x100 = data[9]; 
+      ui_vars->ui8_optional_ADC_function = data[10]; 
+      ui_vars->ui8_assist_without_pedal_rotation_threshold = data[11]; 
+      ui_vars->ui8_lights_configuration = data[12]; 
+      ui_vars->ui16_wheel_perimeter = (((uint16_t) data[14]) << 8) + ((uint16_t) data[13]); 
+      ui_vars->ui8_walk_assist_feature_enabled = data[15]; 
+      ui_vars->ui16_battery_voltage_reset_wh_counter_x10 = (((uint16_t) data[17]) << 8) + ((uint16_t) data[16]); 
+      ui_vars->ui8_battery_max_current = data[18]; 
+      ui_vars->ui8_target_max_battery_power_div25 = data[19];
+	  
+	  ui_vars->ui16_target_max_battery_power = ui_vars->ui8_target_max_battery_power_div25 * 25;
 	}
 	
-		if(p_data[1] == 0x02){
+		if(data[1] == 0x02){
   
-      ui_vars->ui16_battery_pack_resistance_x1000 = (((uint16_t) p_data[3]) << 8) + ((uint16_t) p_data[2]);
-      ui_vars->ui16_battery_low_voltage_cut_off_x10 = (((uint16_t) p_data[5]) << 8) + ((uint16_t) p_data[4]);
-      ui_vars->ui8_street_mode_enabled = p_data[6];
-      ui_vars->ui8_street_mode_throttle_enabled = p_data[7];
-      ui_vars->ui8_street_mode_power_limit_div25 = p_data[8]; 
-      ui_vars->ui8_street_mode_speed_limit = p_data[9]; 
-	  ui_vars->ui8_field_weakening_enabled = p_data[10];
-	  ui_vars->ui8_field_weakening_current_adc = p_data[11];
-	  ui_vars->ui8_hybrid_mode_enabled = p_data[12];	
-  	  ui_vars->ui8_soft_start_feature_enabled = p_data[13];
-	  ui_vars->ui8_battery_soc_enable = p_data[14];
-	  ui_vars->ui8_motor_current_min_adc = p_data[15];
-	  ui_vars->wheel_max_speed_x10 = (uint16_t) (p_data[16] * 10);	  
+      ui_vars->ui16_battery_pack_resistance_x1000 = (((uint16_t) data[3]) << 8) + ((uint16_t) data[2]);
+      ui_vars->ui16_battery_low_voltage_cut_off_x10 = (((uint16_t) data[5]) << 8) + ((uint16_t) data[4]);
+      ui_vars->ui8_street_mode_enabled = data[6];
+      ui_vars->ui8_street_mode_throttle_enabled = data[7];
+      ui_vars->ui8_street_mode_power_limit_div25 = data[8]; 
+      ui_vars->ui8_street_mode_speed_limit = data[9]; 
+	  ui_vars->ui8_field_weakening_enabled = data[10];
+	  ui_vars->ui8_field_weakening_current_adc = data[11];
+	  ui_vars->ui8_hybrid_mode_enabled = data[12];	
+  	  ui_vars->ui8_soft_start_feature_enabled = data[13];
+	  ui_vars->ui8_time_field_enable = data[14];
+	  ui_vars->ui8_motor_current_min_adc = data[15];
+	  ui_vars->wheel_max_speed_x10 = (uint16_t) (data[16] * 10);
+      ui_vars->ui8_energy_saving_mode_level	=  data[17];
 	}
 	
-		if(p_data[1] == 0x03){
+		if(data[1] == 0x03){
   
       for (int i = 0; i < 5; i++)
-      ui_vars->ui8_target_peak_battery_power_div25[i] = p_data[2 + i];
+      ui_vars->ui8_target_peak_battery_power_div25[i] = data[2 + i];
       
 	  for (int i = 0; i < 5; i++)
-      ui_vars->ui8_motor_acceleration_level[i] = p_data[7 + i];
+      ui_vars->ui8_motor_acceleration_level[i] = data[7 + i];
       
 	  for (int i = 0; i < 5; i++)
-      ui_vars->ui8_walk_assist_level_factor[i] = p_data[12 + i];	  
+      ui_vars->ui8_walk_assist_level_factor[i] = data[12 + i];	  
 	  
 	}	
 	
-		if(p_data[1] == 0x04){
+		if(data[1] == 0x04){
 		
       for (int i = 0; i < 5; i++)
-      ui_vars->ui8_assist_level_power_assist[i] = p_data[2 + i];
+      ui_vars->ui8_assist_level_power_assist[i] = data[2 + i];
       
 	  for (int i = 0; i < 5; i++)
-      ui_vars->ui8_assist_level_torque_assist[i] = p_data[7 + i];	  
+      ui_vars->ui8_assist_level_torque_assist[i] = data[7 + i];	  
 	  
-	  ui_vars->ui32_wh_x10_100_percent = ((((uint32_t) p_data[14]) << 16) + (((uint32_t) p_data[13]) << 8) + ((uint32_t) p_data[12]));
-	  ui_vars->ui32_wh_x10_offset = ((((uint32_t) p_data[17]) << 16) + (((uint32_t) p_data[16]) << 8) + ((uint32_t) p_data[15]));
+	  ui_vars->ui32_wh_x10_100_percent = ((((uint32_t) data[14]) << 16) + (((uint32_t) data[13]) << 8) + ((uint32_t) data[12]));
+	  ui_vars->ui32_wh_x10_offset = ((((uint32_t) data[17]) << 16) + (((uint32_t) data[16]) << 8) + ((uint32_t) data[15]));
+	  ui_vars->ui8_lcd_power_off_time_minutes = data[18];;
+	  ui_vars->ui8_units_type = data[19];
  
 	}
-		if(p_data[1] == 0x05){
+		if(data[1] == 0x05){
 
 	  for (uint8_t i = 0; i < 6; i++) 
-      ui_vars->ui16_torque_sensor_calibration_table[i][0] = p_data[2 + i]; //kg values
+      ui_vars->ui16_torque_sensor_calibration_table[i][0] = data[2 + i]; //kg values
 
-      ui_vars->ui16_torque_sensor_calibration_table[0][1] = (((uint16_t) p_data[9]) << 8) + ((uint16_t) p_data[8]); //adc values
-	  ui_vars->ui16_torque_sensor_calibration_table[1][1] = (((uint16_t) p_data[11]) << 8) + ((uint16_t) p_data[10]); //adc values
-	  ui_vars->ui16_torque_sensor_calibration_table[2][1] = (((uint16_t) p_data[13]) << 8) + ((uint16_t) p_data[12]); //adc values
-	  ui_vars->ui16_torque_sensor_calibration_table[3][1] = (((uint16_t) p_data[15]) << 8) + ((uint16_t) p_data[14]); //adc values
-	  ui_vars->ui16_torque_sensor_calibration_table[4][1] = (((uint16_t) p_data[17]) << 8) + ((uint16_t) p_data[16]); //adc values
-	  ui_vars->ui16_torque_sensor_calibration_table[5][1] = (((uint16_t) p_data[19]) << 8) + ((uint16_t) p_data[18]); //adc values
+      ui_vars->ui16_torque_sensor_calibration_table[0][1] = (((uint16_t) data[9]) << 8) + ((uint16_t) data[8]); //adc values
+	  ui_vars->ui16_torque_sensor_calibration_table[1][1] = (((uint16_t) data[11]) << 8) + ((uint16_t) data[10]); //adc values
+	  ui_vars->ui16_torque_sensor_calibration_table[2][1] = (((uint16_t) data[13]) << 8) + ((uint16_t) data[12]); //adc values
+	  ui_vars->ui16_torque_sensor_calibration_table[3][1] = (((uint16_t) data[15]) << 8) + ((uint16_t) data[14]); //adc values
+	  ui_vars->ui16_torque_sensor_calibration_table[4][1] = (((uint16_t) data[17]) << 8) + ((uint16_t) data[16]); //adc values
+	  ui_vars->ui16_torque_sensor_calibration_table[5][1] = (((uint16_t) data[19]) << 8) + ((uint16_t) data[18]); //adc values
 	}
 	
-		if(p_data[1] == 0x06){
+		if(data[1] == 0x06){
 
 	  for (uint8_t i = 0; i < 6; i++) 
-      ui_vars->ui8_hall_ref_angles[i] = p_data[2+ i]; 
+      ui_vars->ui8_hall_ref_angles[i] = data[2+ i]; 
 	  
   	  for (uint8_t i = 0; i < 6; i++) 
-      ui_vars->ui8_hall_counter_offset[i] = p_data[8+ i];
+      ui_vars->ui8_hall_counter_offset[i] = data[8+ i];
 	}
 	
 	ble_config_update = false;
+	ble_command = NO_PACKET;
 	
 	if (g_motor_init_state == MOTOR_INIT_READY)
     g_motor_init_state = MOTOR_UPDATE_CONFIG;
+	
  }
+ 
+ 

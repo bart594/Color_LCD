@@ -15,8 +15,8 @@
 
 // For compatible changes, just add new fields at the end of the table (they will be inited to 0xff for old eeprom images).  For incompatible
 // changes bump up EEPROM_MIN_COMPAT_VERSION and the user's EEPROM settings will be discarded.
-#define EEPROM_MIN_COMPAT_VERSION 0x40
-#define EEPROM_VERSION 0x40
+#define EEPROM_MIN_COMPAT_VERSION 0x41
+#define EEPROM_VERSION 0x41
 
 typedef struct {
   graph_auto_max_min_t auto_max_min;
@@ -33,7 +33,7 @@ typedef struct eeprom_data {
 	uint8_t ui8_units_type;
 	uint32_t ui32_wh_x10_offset;
 	uint32_t ui32_wh_x10_100_percent;
-	uint8_t ui8_battery_soc_enable;
+	uint8_t ui8_time_field_enable;
 	uint8_t ui8_target_max_battery_power_div25;
 	uint8_t ui8_battery_max_current;
 	uint8_t ui8_motor_max_current;
@@ -64,10 +64,9 @@ typedef struct eeprom_data {
 	uint8_t	 ui8_assist_level_torque_assist[ASSIST_LEVEL_NUMBER];	
 	uint8_t  ui8_target_peak_battery_power_div25[ASSIST_LEVEL_NUMBER];
 	uint8_t  ui8_motor_acceleration_level[ASSIST_LEVEL_NUMBER];	
-	uint8_t ui8_riding_mode_ui;
+	uint8_t ui8_riding_mode;
 	uint8_t ui8_eMTB_assist_level;
 	uint8_t ui8_optional_ADC_function;
-	uint8_t ui8_target_battery_max_power_div25;
 	uint8_t ui8_motor_acceleration;
 	uint8_t ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	uint8_t ui8_cruise_function_target_speed_kph;
@@ -79,6 +78,7 @@ typedef struct eeprom_data {
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
 	uint8_t ui8_hall_ref_angles[6];
 	uint8_t ui8_hall_counter_offset[6];
+	uint8_t ui8_energy_saving_mode_level;
 
 	uint8_t field_selectors[NUM_CUSTOMIZABLE_FIELDS]; // this array is opaque to the app, but the screen layer uses it to store which field is being displayed (it is stored to EEPROM)
 	uint8_t graphs_field_selectors[3]; // 3 screen main pages
@@ -162,7 +162,8 @@ typedef struct eeprom_data {
   uint16_t ui16_battery_power_avg;
   uint16_t ui16_pedal_power_avg; 
   uint16_t ui16_pedal_cadence_avg;	
-  uint16_t ui16_battery_energy_h_km_avg_x10;
+  uint16_t ui16_battery_energy_h_km_avg_x100;
+  uint8_t ui8_plus_long_press_switch;
   
 // FIXME align to 32 bit value by end of structure and pack other fields
 } eeprom_data_t;
@@ -254,7 +255,17 @@ void eeprom_init_defaults(void);
 #define DEFAULT_VALUE_HYBRID_MODE								    0
 #define DEFAULT_VALUE_SOFT_START_FEATURE							0
 #define DEFAULT_VALUE_MOTOR_CURRENT_MIN_ADC							0
-#define DEFAULT_VALUE_TRIP_STATS                                 	0
+#define DEFAULT_VALUE_TRIP_TIME										0
+#define DEFAULT_VALUE_TRIP_DISTANCE									0
+#define DEFAULT_VALUE_TRIP_MAX_SPEED								0
+#define DEFAULT_VALUE_TRIP_AVG_SPEED								0
+#define DEFAULT_VALUE_AVG_CURRENT									0
+#define DEFAULT_VALUE_AVG_BATT_POWER								0	
+#define DEFAULT_VALUE_PEDAL_POWER									0
+#define DEFAULT_VALUE_AVG_CADENCE									0
+#define DEFAULT_VALUE_AVG_ENERGY									0
+#define DEFAULT_VALUE_LONG_PRESS									0
+#define DEFAULT_VALUE_ENERGY_SAVING_MODE	   						0
 
 #define DEFAULT_VALUE_HALL_COUNTER_OFFSET_UP						44
 #define DEFAULT_VALUE_HALL_COUNTER_OFFSET_DOWN						23

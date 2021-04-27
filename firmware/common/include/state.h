@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
 #define ASSIST_LEVEL_NUMBER 5
 // error codes from common.h in the controller code, used for ui8_error_states
 // error codes
@@ -115,7 +116,6 @@ typedef struct rt_vars_struct {
 
 	uint8_t ui8_riding_mode;
 	uint8_t ui8_optional_ADC_function;
-	uint8_t ui8_target_battery_max_power_div25;	
 	uint8_t ui8_motor_acceleration;
 	uint8_t ui8_pedal_torque_per_10_bit_ADC_step_x100;	
 	uint8_t ui8_cruise_function_target_speed_kph;
@@ -124,6 +124,7 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_soft_start_feature_enabled;
     uint8_t ui8_hybrid_mode_enabled;
 	uint8_t ui8_lights_configuration;
+	uint8_t ui8_time_field_enable;
 	
 	uint32_t ui32_trip_distance_x1000;
 	uint32_t ui32_trip_distance_x100;
@@ -134,7 +135,8 @@ typedef struct rt_vars_struct {
 	uint16_t ui16_battery_power_avg;
 	uint16_t ui16_pedal_power_avg; 
 	uint16_t ui16_pedal_cadence_avg;	
-	uint16_t ui16_battery_energy_h_km_avg_x10;
+	uint16_t ui16_battery_energy_h_km_avg_x100;
+	uint32_t ui32_calc_time_seconds;
 	
 	uint8_t ui8_lights;
 	uint8_t ui8_braking;
@@ -142,12 +144,12 @@ typedef struct rt_vars_struct {
 
     uint8_t ui8_torque_sensor_calibration_feature_enabled;
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
-	uint16_t ui16_torque_sensor_calibration_ble_table[6][2];
 
     uint8_t ui8_hall_ref_angles[6];
 	uint8_t ui8_hall_counter_offset[6];
 	uint16_t ui16_hall_calib_cnt[6];
 		
+	uint8_t ui8_plus_long_press_switch;
 	uint8_t ui8_street_mode_enabled;
 	uint8_t ui8_street_mode_feature_enabled;
 	uint8_t ui8_street_mode_enabled_on_startup;
@@ -158,6 +160,7 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_field_weakening_enabled;
 	uint8_t ui8_field_weakening_current_adc;
 	battery_energy_h_km_t battery_energy_h_km;
+	uint16_t ui16_battery_estimated_range_x10;
 	
 	uint32_t ui32_nav_turn_distance;
 	uint32_t ui32_nav_total_distance;
@@ -166,6 +169,8 @@ typedef struct rt_vars_struct {
 	uint8_t ui8_nav_info_extra;
 	uint8_t ui8_motor_current_min_adc;
 	uint8_t ui8_calibration_duty_cycle_target;
+	uint8_t ui8_lcd_power_off_time_minutes;
+	uint8_t ui8_energy_saving_mode_level;
 } rt_vars_t;
 
 /* Selector positions for customizable fields
@@ -210,6 +215,7 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_pedal_torque_filtered;
 	uint16_t ui16_pedal_power;
 	uint8_t ui8_pedal_cadence_filtered;
+	uint16_t ui16_pedal_power_filtered;
 	uint16_t ui16_battery_voltage_soc_x10;
 	uint32_t ui32_wh_sum_x5;
 	uint32_t ui32_wh_sum_counter;
@@ -259,17 +265,16 @@ typedef struct ui_vars_struct {
 	uint16_t ui16_battery_power_avg;
 	uint16_t ui16_pedal_power_avg; 
 	uint16_t ui16_pedal_cadence_avg;
-	uint16_t ui16_battery_energy_h_km_avg_x10;
+	uint16_t ui16_battery_energy_h_km_avg_x100;
+	uint16_t ui16_battery_estimated_range_x10;
 	
 	uint8_t ui8_lights;
 	uint8_t ui8_braking;
 	uint8_t ui8_walk_assist;
 	uint8_t ui8_buttons_up_down_invert;
 	uint8_t ui8_riding_mode;
-	uint8_t ui8_riding_mode_ui;
 	//uint8_t ui8_riding_mode_embt;
 	uint8_t ui8_optional_ADC_function;
-	uint8_t ui8_target_battery_max_power_div25;
 	uint8_t ui8_motor_acceleration;
 	uint8_t ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	uint8_t ui8_cruise_function_target_speed_kph;
@@ -280,6 +285,7 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_field_weakening_enabled;
 	uint8_t ui8_field_weakening_current_adc;
 	uint8_t ui8_calibration_duty_cycle_target;
+	uint32_t battery_energy_h_km_ui32_value_x10;
 
 	uint32_t ui32_nav_turn_distance;
 	uint32_t ui32_nav_total_distance;
@@ -290,7 +296,8 @@ typedef struct ui_vars_struct {
 	
 	uint8_t ui8_torque_sensor_calibration_feature_enabled;
 	uint16_t ui16_torque_sensor_calibration_table[6][2];
-	
+	uint16_t ui16_torque_sensor_calibration_ble_table[6][2];
+	uint16_t ui16_hall_calib_cnt[6];
 	uint8_t ui8_hall_ref_angles[6];
 	uint8_t ui8_hall_counter_offset[6];
 
@@ -303,8 +310,9 @@ typedef struct ui_vars_struct {
 	uint8_t ui8_street_mode_power_limit_div25;
 	uint16_t ui16_street_mode_power_limit;
 	uint8_t ui8_street_mode_throttle_enabled;
-	uint8_t ui8_cadence_sensor_calib_enabled;
-;
+	uint8_t ui8_plus_long_press_switch;
+	uint8_t ui8_energy_saving_mode_level;
+    uint32_t ui32_calc_time_seconds;
 	
   uint16_t var_speed_graph_auto_max_min;
   uint16_t var_speed_graph_max_x10;
@@ -400,6 +408,11 @@ extern ui_vars_t ui_vars;
 
 extern volatile bool ble_config_update;
 extern volatile uint8_t ui8_g_motorVariablesStabilized;
+extern uint8_t ui8_g_configuration_trip_reset;
+extern volatile bool ui8_g_energy_saving_mode_enabled;
+extern volatile uint32_t ui32_g_ble_time_seconds;
+extern uint8_t ui8_g_battery_soc;
+extern uint8_t ui8_g_configuration_display_reset_to_defaults;
 
 typedef struct {
   uint8_t major;
@@ -430,7 +443,6 @@ void prepare_torque_sensor_calibration_table(void);
 
 void reset_wh(void);
 
-extern uint8_t ui8_g_battery_soc;
 
 //extern tsdz2_firmware_version_t g_tsdz2_firmware_version;
 

@@ -27,6 +27,7 @@
 #include "rtc.h"
 #ifdef SW102
 #include "peer_manager.h"
+#include "ble_services.h"
 #endif
 
 #define MAX_TIMESTR_LEN 8 // including nul terminator
@@ -40,12 +41,13 @@ static uint8_t nav_info_timeout = 0;
 uint8_t ui8_m_wheel_speed_integer;
 uint8_t ui8_m_wheel_speed_decimal;
 uint8_t assist_field_value;
+static uint8_t ui8_m_show_logo = 0;
 
 uint16_t ui16_m_nav_turn_distance;
 uint16_t ui16_m_nav_total_distance;
 bool ws_field_enable = false;
 bool ws_field_needs_redraw = false;
-static uint8_t power_strip_segment_draw_number;
+static uint8_t power_strip_segment_draw_number = 0;
 
 static uint8_t ui8_walk_assist_state = 0;
 
@@ -53,14 +55,12 @@ uint16_t ui16_m_battery_current_filtered_x10;
 uint16_t ui16_m_motor_current_filtered_x10;
 uint16_t ui16_m_battery_power_filtered;
 uint16_t ui16_m_pedal_power_filtered;
-uint8_t ui8_m_show_logo;
-uint8_t  ui8_m_animation = 0;
 uint8_t g_showNextScreenIndex = 0;
 uint8_t g_showNextScreenPreviousIndex = 0;
 uint16_t ui16_g_target_max_motor_power;
 uint8_t ui8_g_motor_max_power_state = 0;
 uint8_t ui8_assist_level_emtb;
-static uint8_t ui8_riding_mode_prev;
+uint8_t ui8_riding_mode_prev;
 
 
   
@@ -73,6 +73,9 @@ void wheel_speed(void);
 void battery_soc(void);
 void up_time(void);
 void trip_time(void);
+void emtb_assist(void);
+void nav_distance(void);
+void assit_level_field(void);
 void updateTripTime(uint32_t tripTime, Field *field);
 void wheel_speed(void);
 void showNextScreen();
@@ -80,6 +83,7 @@ static bool renderWarning(FieldLayout *layout);
 void DisplayResetToDefaults(void);
 void TripMemoriesReset(void);
 void DisplayResetBluetoothPeers(void);
+void BatterySOCReset(void);
 void onSetConfigurationBatteryTotalWh(uint32_t v);
 void batteryTotalWh(void);
 void batteryCurrent(void);
@@ -88,9 +92,7 @@ void batteryResistance(void);
 void batteryPower(void);
 void pedalPower(void);
 void thresholds(void);
-void emtb_assist(void);
-void nav_distance(void);
-void assit_level_field(void);
+void EnergySavingMode(void);
 
 /// set to true if this boot was caused because we had a watchdog failure, used to show user the problem in the fault line
 bool wd_failure_detected;
@@ -134,9 +136,9 @@ Field motorTempField = FIELD_READONLY_UINT(_S("motor temp", "mot temp"), &ui_var
 Field motorErpsField = FIELD_READONLY_UINT(_S("motor speed", "mot speed"), &ui_vars.ui16_motor_speed_erps, "", true, .div_digits = 0);
 Field pwmDutyField = FIELD_READONLY_UINT(_S("motor pwm", "mot pwm"), &ui_vars.ui8_duty_cycle, "%", true, .div_digits = 0);
 Field motorFOCField = FIELD_READONLY_UINT(_S("motor foc", "mot foc"), &ui_vars.ui8_foc_angle, "", true, .div_digits = 0);
-
+Field estRangeField = FIELD_READONLY_UINT(_S("est. range", "est range"), &ui_vars.ui16_battery_estimated_range_x10, "km", true, .div_digits = 1);
 // Note: this field label is special, the string it is pointing to must be in RAM so we can change it later
-Field batteryPowerUsageField = FIELD_READONLY_UINT((char [MAX_BATTERY_POWER_USAGE_STR_LEN]){ 0 }, &ui_vars.battery_energy_km_value_x100, "kph", true, .div_digits = 2);
+Field batteryPowerUsageField = FIELD_READONLY_UINT((char [MAX_BATTERY_POWER_USAGE_STR_LEN]){ 0 }, &ui_vars.battery_energy_km_value_x100, "wh/km", true, .div_digits = 2);
 
 
 Field warnField = FIELD_CUSTOM(renderWarning);
@@ -167,6 +169,7 @@ Field *customizables[] = {
 	&pwmDutyField, // 14
 	&motorFOCField, // 15
 	&batteryPowerUsageField, // 16
+	&estRangeField,			//17
 	NULL
 };
 
@@ -190,7 +193,7 @@ Field pwmDutyFieldGraph = FIELD_READONLY_UINT("pwm duty-cycle", &rt_vars.ui8_dut
 Field motorFOCFieldGraph = FIELD_READONLY_UINT("motor foc", &rt_vars.ui8_foc_angle, "", false);
 
 // Note: this field label is special, the string it is pointing to must be in RAM so we can change it later
-Field batteryPowerUsageFieldGraph = FIELD_READONLY_UINT((char [MAX_BATTERY_POWER_USAGE_STR_LEN]){ 0 }, &rt_vars.battery_energy_h_km.ui32_value_x10, "kph", false, .div_digits = 1);
+Field batteryPowerUsageFieldGraph = FIELD_READONLY_UINT((char [MAX_BATTERY_POWER_USAGE_STR_LEN]){ 0 }, &rt_vars.battery_energy_h_km.ui32_value_x10, "wh/km", false, .div_digits = 1);
 
 #ifndef SW102 // we don't have any graphs yet on SW102, possibly move this into mainscreen_850.c
 Field wheelSpeedGraph = FIELD_GRAPH(&wheelSpeedFieldGraph, .min_threshold = -1, .graph_vars = &g_graphVars[VarsWheelSpeed]);
@@ -299,23 +302,16 @@ Field bootHeading = FIELD_DRAWTEXT_RO(_S("OpenSource EBike", "OS-EBike")),
 
 static void bootScreenOnPreUpdate() {
 
-  //motor_init_state();
-#ifdef SW102
-   if(ui8_m_animation == 0)
-    ui8_m_show_logo = 0;
+ #ifdef SW102
+	if((g_motor_init_state == MOTOR_INIT_STARTUP_CONFIG) && ui8_g_motorVariablesStabilized)
+	ui8_m_show_logo++;
 #endif
-	ui8_m_animation++;
-	
+   	if((g_motor_init_state == MOTOR_INIT_STARTUP_CONFIG) || (g_motor_init_state == MOTOR_INIT_NOT_READY))
+  	fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
 	
    //Stop showing only after we release on/off button and after motor init
     if (g_motor_init_state == MOTOR_INIT_READY && buttons_get_onoff_state() == 0){ 
 	showNextScreen();
-	}
-	
-	if((g_motor_init_state == MOTOR_INIT_NOT_READY || MOTOR_INIT_STARTUP_CONFIG)){
-    fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
-	if(ui8_m_animation > 31) //yeah i know it's weird  piece of code but after motor init boot logo doesnt't show up
-	ui8_m_show_logo = ui8_m_animation - 30 ; 	
 	}
 	
     if(g_motor_init_state == MOTOR_INIT_ERROR) {
@@ -325,8 +321,8 @@ static void bootScreenOnPreUpdate() {
 }
 
 void bootScreenOnExit(void) {
-  // SW102: now that we are goind to main screen, start by showing the assist level for 4 seconds
-  m_assist_field_change_timeout = 40;
+  // SW102: now that we are goind to main screen, start by showing the assist level for 3 seconds
+  m_assist_field_change_timeout = 30;
 }
 
 Screen bootScreen = {
@@ -411,12 +407,27 @@ bool anyscreen_onpress(buttons_events_t events) {
 
   // long up to turn on headlights
   if (events & UP_LONG_CLICK) {
-    ui_vars.ui8_lights = !ui_vars.ui8_lights;
-    m_light_change_timeout = 20;
+  switch (ui_vars.ui8_plus_long_press_switch)
+  {
+	case 0:	//quickmenu
+    screenShow(&quickScreen);
+	break;
+  
+	case 1:	//next screen
+	showNextScreen();
+	break;
+  
+	case 2:   //light
+	ui_vars.ui8_lights = !ui_vars.ui8_lights;
+	m_light_change_timeout = 20;
 	set_lcd_backlight();
-     //screenShow(&configScreen);
-	return true;
+	break;
   }
+
+    return true;
+
+  }
+  
   return false;
 }
 
@@ -448,9 +459,9 @@ static bool onPressMotorMaxPower(buttons_events_t events) {
           ui_vars.ui8_target_max_battery_power_div25 += 2;
         }
 
-          // limit to 100 * 25 = 2500 Watts
-          if(ui_vars.ui8_target_max_battery_power_div25 > 100) {
-            ui_vars.ui8_target_max_battery_power_div25 = 100;
+          // limit to 100 * 40 = 1000 Watts
+          if(ui_vars.ui8_target_max_battery_power_div25 > 40) {
+            ui_vars.ui8_target_max_battery_power_div25 = 40;
           }
       }
 
@@ -497,7 +508,6 @@ static bool onPressStreetMode(buttons_events_t events) {
   return handled;
 }
 
-
 bool mainScreenOnPress(buttons_events_t events) {
   
   bool handled = false;
@@ -509,7 +519,6 @@ bool mainScreenOnPress(buttons_events_t events) {
 
   if (handled == false)
     handled = onPressStreetMode(events);
-
 
   if (handled == false) {
     if (events & UP_CLICK) {
@@ -651,13 +660,13 @@ void nav_distance(void)
 	   
   //if no navigation show motor power
   if(ui_vars.ui32_nav_total_distance == 0)
-  power_strip_segment_draw_number = (ui16_m_battery_power_filtered * 100) / ui16_g_target_max_motor_power;
+  power_strip_segment_draw_number = (ui16_m_battery_power_filtered * 100) / ui_vars.ui16_target_max_battery_power;
 
   PowerStripOnDirtyClean(power_strip_segment_draw_number);
   
 
   if(ui32_nav_turn_dist > 0 && ui32_nav_turn_dist < 30 && ui32_nav_t_turn_dist > 50){
-	nav_info_timeout = 10;
+	nav_info_timeout = 20;
   }
  
 }
@@ -719,16 +728,16 @@ void screen_clock(void) {
   int time_ms = 0;
 
   
-  // No point to processing less than every 120ms, as the data comming from the motor is only updated every 120ms, not less
+  // No point to processing less than every 100ms, as the data comming from the motor is only updated every 100ms, not less
   time_ms = get_time_base_counter_1ms();
-  if((time_ms - counter_time_ms) >= 120) // not least than evey 120ms
+  if((time_ms - counter_time_ms) >= 100) // not least than evey 100ms
   {
     counter_time_ms = time_ms;
 
     // exchange data from realtime layer to UI layer
     // do this in atomic way, disabling the real time layer (should be no problem as
-    // copy_rt_to_ui_vars() should be fast and take a small piece of the 120ms periodic realtime layer processing
-	//if we getting config update from mobile app  don't copy vars (SW102)
+    // copy_rt_to_ui_vars() should be fast and take a small piece of the 100ms periodic realtime layer processing
+	
 #ifdef SW102	
     if(!ble_config_update){
 	rt_processing_stop();
@@ -744,8 +753,10 @@ void screen_clock(void) {
 #ifndef SW102
     clock_time();
 #endif
+	EnergySavingMode();
     DisplayResetToDefaults();
 	DisplayResetBluetoothPeers();
+	BatterySOCReset();
     TripMemoriesReset();
     batteryTotalWh();
     batteryCurrent();
@@ -992,13 +1003,14 @@ void thresholds(void) {
 
 void up_time(void) {
 	rtc_time_t *p_time = rtc_get_time_since_startup();
+	char up_timestr[MAX_TIMESTR_LEN]; // 12:13
 	static int oldmin = -1; // used to prevent unneeded updates
-	char timestr[MAX_TIMESTR_LEN]; // 12:13
+	//char up_timestr[MAX_TIMESTR_LEN]; // 12:13
 
 	if (p_time->ui8_minutes != oldmin) {
 		oldmin = p_time->ui8_minutes;
-		sprintf(timestr, "%d:%02d", p_time->ui8_hours, p_time->ui8_minutes);
-		updateReadOnlyStr(&upTimeField, timestr);
+		sprintf(up_timestr, "%d:%02d", p_time->ui8_hours, p_time->ui8_minutes);
+		updateReadOnlyStr(&upTimeField, up_timestr);
 	}
 }
 
@@ -1009,7 +1021,7 @@ void trip_time(void){
 void updateTripTime(uint32_t tripTime, Field *field) {
   char timestr[MAX_TIMESTR_LEN]; // 12:13
   uint32_t ui32_temp = tripTime % 86399; // 86399 = seconds in 1 day minus 1s
-  
+  	
   
   // Calculate trip time
   uint8_t hours = ui32_temp / 3600;
@@ -1048,12 +1060,11 @@ void setWarning(ColorOp color, const char *str) {
 		strncpy(warningStr, str, sizeof(warningStr));
 }
 
-static const char *motorErrors[] = { _S("None", "None"), _S("Motor Blocked", "Motor Blocked"), "Torque Fault", "Brake Fault", "Throttle Fault", "Speed Fault", "Low Voltage", "Calibration error"};
+static const char *motorErrors[] = { _S("None", "None"), _S("Motor Blocked", "Motor Blocked"), "Torque Fault", "Brake Fault", "Throttle Fault", "Speed Fault", "Low Voltage"};
 
 void warnings(void) {
   static uint8_t motor_temp_limit = 0;
   static uint8_t ui8_motorErrorsIndex = 0;
-
   
   if (ui_vars.ui8_optional_ADC_function == TEMPERATURE_CONTROL){motor_temp_limit = 1;}
 
@@ -1179,9 +1190,14 @@ void battery_soc(void) {
 
 
 void time(void) {
-#ifndef SW102
-  rtc_time_t *p_rtc_time = rtc_get_time();
+#ifdef SW102
 
+	rtc_time_t *p_time = rtc_get_time_since_startup();
+
+	static uint8_t upd_only_1time = 1;
+	static uint8_t ui8_1s_timer = 0;
+    static uint32_t ui32_temp = 0;
+  
   switch (ui_vars.ui8_time_field_enable) {
     default:
     case 0:
@@ -1190,17 +1206,60 @@ void time(void) {
       break;
 
     case 1:
-      // force to be [0 - 12]
-      if (ui_vars.ui8_units_type) { // FIXME, should be based on a different eeprom config value, just because someone is using mph doesn't mean they want 12 hr time
-        if (p_rtc_time->ui8_hours > 12) {
-          p_rtc_time->ui8_hours -= 12;
+	
+	if((ui32_g_ble_time_seconds) && upd_only_1time){
+	ui32_temp = ui32_g_ble_time_seconds;
+	upd_only_1time = 0;
+	}
+    
+	if (++ui8_1s_timer >= 10 && ui32_temp){
+	  ui8_1s_timer = 0;
+      ui32_temp += 1;
+      rt_vars.ui32_calc_time_seconds = ui32_temp;
+	
+	// Calculate time
+    uint8_t hours = ui32_temp / 3600;
+    uint8_t minutes = (ui32_temp % 3600) / 60;
+	
+	// force to be [0 - 12]
+      if (ui_vars.ui8_units_type) { 
+        if (hours > 12) {
+          hours -= 12;
         }
       }
+	
+	fieldPrintf(&timeField, "%d:%02d", hours, minutes);
+	
+    }else if(upd_only_1time){
+	fieldPrintf(&timeField, "%d:%02d", p_time->ui8_hours, p_time->ui8_minutes);
+	}
 
-      fieldPrintf(&timeField, "%d:%02d", p_rtc_time->ui8_hours,
-          p_rtc_time->ui8_minutes);
+      break;
+#else
+    rtc_time_t *p_rtc_time = rtc_get_time();
+
+  
+  switch (ui_vars.ui8_time_field_enable) {
+    default:
+    case 0:
+      // clear the area
+      fieldPrintf(&timeField, "");
       break;
 
+    case 1:
+	
+	// force to be [0 - 12]
+    if (ui_vars.ui8_units_type) { // FIXME, should be based on a different eeprom config value, just because someone is using mph doesn't mean they want 12 hr time
+        if (p_rtc_time->ui8_hours > 12) {
+            p_rtc_time->ui8_hours -= 12;
+         }
+       }
+
+       fieldPrintf(&timeField, "%d:%02d", p_rtc_time->ui8_hours,
+       p_rtc_time->ui8_minutes);
+      break;
+
+#endif
     case 2:
       fieldPrintf(&timeField, "%3d%%", ui8_g_battery_soc);
       break;
@@ -1211,7 +1270,7 @@ void time(void) {
           ui_vars.ui16_battery_voltage_soc_x10 % 10);
       break;
   }
-#endif
+
 }
 
 void walk_assist_state(void) {
@@ -1337,7 +1396,7 @@ void main_idle() {
 
   
   time_ms = get_time_base_counter_1ms();
-  if((time_ms - counter_time_ms) >= 120) // not least than evey 120ms
+  if((time_ms - counter_time_ms) >= 100) // not least than evey 100ms
   {
     counter_time_ms = time_ms;
     automatic_power_off_management();
@@ -1382,6 +1441,30 @@ void TripMemoriesReset(void) {
 	
   }
 }
+
+void BatterySOCReset(void) {
+	if (ui8_g_configuration_battery_soc_reset) {
+		ui8_g_configuration_battery_soc_reset = 0;
+		if(ui_vars.ui16_battery_voltage_soc_x10 < ui_vars.ui16_battery_voltage_reset_wh_counter_x10) {
+		   reset_wh();
+		}
+	}
+}
+
+void EnergySavingMode(void) {
+
+	if(ui8_g_energy_saving_mode_enabled){
+#ifdef SW102
+	//disable bluetooth
+	disconnect_stop_adv();
+#endif
+	//disable field weakening
+	rt_vars.ui8_field_weakening_enabled = 0;
+	//limit battery current to 10 A
+	rt_vars.ui8_battery_max_current = 10;
+	}
+}
+
 void DisplayResetBluetoothPeers(void) {
 #ifdef SW102
   if (ui8_g_configuration_display_reset_bluetooth_peers) {

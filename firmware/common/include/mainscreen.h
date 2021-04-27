@@ -10,7 +10,6 @@
 extern Screen mainScreen1, mainScreen2, mainScreen3, bootScreen;
 extern Screen *screens[];
 extern Field
-  logoField,
   socField,
   timeField,
   assistLevelField,
@@ -27,6 +26,7 @@ extern Field
   humanPowerField,
   batteryPowerField,
   batteryPowerUsageField,
+  estRangeField,
   motorMaxPowerField,
   batteryVoltageField,
   batteryCurrentField,
@@ -39,6 +39,7 @@ extern Field
   motorTempGraph,
   bootStatus2,
 #ifdef SW102
+  logoField,
   navTurnField,
   navTurnDistanceField,
   navDistanceField,

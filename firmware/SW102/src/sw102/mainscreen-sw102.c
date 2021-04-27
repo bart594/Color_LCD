@@ -60,6 +60,13 @@ static void mainScreenOnEnter() {
   .align_x = AlignRight, \
   .font = &REGULAR_TEXT_FONT, \
   .field = &socField \
+}, \
+{ \
+	.x = 33, .y = 2, \
+	.width = -5, .height = -1, \
+	.font = &REGULAR_TEXT_FONT, \
+	.unit_align_x = AlignRight, \
+	.field = &timeField \
 }
 
 //
