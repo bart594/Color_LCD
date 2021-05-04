@@ -1,0 +1,8 @@
+# The dockerfile does not need to be copied into the docker, this prevents rebuilds
+docker/Dockerfile
+build_with_docker.sh
+.idea
+.settings
+build/*
+*/_build
+*/_release
