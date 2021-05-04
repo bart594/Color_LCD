@@ -38,7 +38,7 @@
 #define DEVICE_NAME                     "OS-EBike"                                  /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME               "https://github.com/OpenSourceEBike"
 
-#define APP_ADV_INTERVAL                40                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
+#define APP_ADV_INTERVAL                80                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS      300                                         /**< The advertising timeout (in units of seconds). */
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(500, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
@@ -72,8 +72,9 @@ volatile bool 							ble_config_update = false;
 uint8_t 								tx_data_buffer[DATA_LENGHT_VALUE] = {0};
 uint8_t 							    tx_data[BLE_NUS_MAX_DATA_LEN] = {0};
 static bool								ble_gap_adv_started  = false;
-volatile uint32_t 						ui32_g_ble_time_seconds;
-  
+volatile uint32_t 						ui32_g_ble_time_seconds = 0;
+//bool 									erase_bonds = false;  
+
 static ble_uuid_t                       m_adv_uuids[] = {
 #ifdef BLE_SERIAL
     {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
@@ -118,7 +119,7 @@ static void gap_params_init(void)
 
     APP_ERROR_CHECK(sd_ble_gap_device_name_set(&sec_mode, (const uint8_t *) DEVICE_NAME, strlen(DEVICE_NAME)));
 
-    APP_ERROR_CHECK(sd_ble_gap_appearance_set(BLE_APPEARANCE_GENERIC_CYCLING));
+    //APP_ERROR_CHECK(sd_ble_gap_appearance_set(BLE_APPEARANCE_GENERIC_CYCLING));
 
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
 
@@ -144,7 +145,7 @@ static void gap_params_init(void)
 	if(p_data[0] == 'e'){
 	uint32_t temp = ((((uint32_t) p_data[3]) << 16) + (((uint32_t) p_data[2]) << 8) + ((uint32_t) p_data[1]));
 	if(temp <  86400) //we don't need some garbage instead time
-	ui32_g_ble_time_seconds  = ((((uint32_t) p_data[3]) << 16) + (((uint32_t) p_data[2]) << 8) + ((uint32_t) p_data[1]));
+	ui32_g_ble_time_seconds  = temp;
 	ble_command = NO_PACKET;
 	} 
 	if(p_data[0] == 'R'){ble_command = PACKET_STATUS;}
@@ -159,7 +160,6 @@ static void gap_params_init(void)
 	if(p_data[0] == 'C' && p_data[1] == 'c'){
 	ble_config_defaults();}  					//reset to defaults
 	if(p_data[0] == 'M'){
-	ble_command = PACKET_MOTOR;
 	ble_motor_test(p_data);
 	}
 	
@@ -265,7 +265,7 @@ static void conn_params_init(void)
 	
     APP_ERROR_CHECK(ble_conn_params_init(&cp_init));
 
-    APP_ERROR_CHECK(ble_advertising_start(BLE_ADV_MODE_FAST));
+    //APP_ERROR_CHECK(ble_advertising_start(BLE_ADV_MODE_FAST));
 	
 }
 
@@ -540,7 +540,8 @@ static void peer_manager_event_handler(pm_evt_t const *p_evt)
             break;
         case PM_EVT_PEERS_DELETE_SUCCEEDED:
             // At this point it is safe to start advertising or scanning.
-		    ble_advertising_start(BLE_ADV_MODE_FAST);
+			advertising_start(false);
+		    //ble_advertising_start(BLE_ADV_MODE_FAST);
             break;
         case PM_EVT_PEERS_DELETE_FAILED:
             // Assert.
@@ -561,14 +562,16 @@ static void peer_manager_event_handler(pm_evt_t const *p_evt)
 
 
 static void peer_init() {
-  bool erase_bonds = false; // FIXME, have UX have a place to delete remembered BT devices
+  
+  //bool erase_bonds = false; // FIXME, have UX have a place to delete remembered BT devices
   ret_code_t err_code;
   err_code = pm_init();
   APP_ERROR_CHECK(err_code);
-  if (erase_bonds)
-  {
-      pm_peers_delete();
-  }
+  
+  //if (erase_bonds)
+  //{
+    //  pm_peers_delete();
+  //}
 
   ble_gap_sec_params_t sec_param;
   memset(&sec_param, 0, sizeof(ble_gap_sec_params_t));
@@ -594,8 +597,39 @@ static void peer_init() {
 }
 
 
+
+/**@brief Clear bond information from persistent storage.
+ */
+void delete_bonds(void)
+{
+    ret_code_t err_code;
+    err_code = pm_peers_delete();
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief Function for starting advertising.
+ */
+void advertising_start(bool erase_bonds)
+{
+    if (erase_bonds == true)
+    {
+        delete_bonds();
+        // Advertising is started by PM_EVT_PEERS_DELETED_SUCEEDED event
+    }
+    else
+    {
+        if (ble_gap_adv_started == false){
+		ret_code_t err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+        APP_ERROR_CHECK(err_code);
+		}
+    }
+}
+
 void ble_init(void)
 {
+  bool erase_bonds;
+  
   ble_stack_init();
   gap_params_init();
   gatt_init();
@@ -603,6 +637,7 @@ void ble_init(void)
   advertising_init();
   conn_params_init();
   peer_init();
+  advertising_start(erase_bonds);
 }
 
 
@@ -618,7 +653,7 @@ void ble_uart_send(ui_vars_t *ui_vars) {
         case NO_PACKET:
          						
 			// Calculate time
-			if(ui_vars->ui32_calc_time_seconds < 86400){
+			if(ui_vars->ui32_calc_time_seconds){
             hours = ui_vars->ui32_calc_time_seconds / 3600;
             minutes = (ui_vars->ui32_calc_time_seconds % 3600) / 60;
 			sprintf(data_arr, "eBike %d:%02d", hours, minutes);
@@ -685,15 +720,11 @@ void ble_uart_send(ui_vars_t *ui_vars) {
 		  if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
 			{
 				ret_code_t err_code;
-				uint8_t temp_cnt = 0;
-				
+								
 				err_code = ble_nus_string_send(&m_nus, tx_data, 15);
 				if (err_code == NRF_SUCCESS)
 				{
-				if (++temp_cnt >=10){
-				temp_cnt = 0;
-				ble_command = PACKET_TRIP_STATS;
-				}else{ble_command = PACKET_STATUS;}
+				ble_command = PACKET_STATUS;
 				}
 			}
 	
@@ -813,7 +844,7 @@ void ble_uart_send(ui_vars_t *ui_vars) {
 		tx_data_buffer[72] = ui_vars->ui8_lcd_power_off_time_minutes;
 		tx_data_buffer[73] = ui_vars->ui8_units_type;
 		tx_data_buffer[74] = ui_vars->ui8_energy_saving_mode_level;
-		tx_data_buffer[75] = 0;
+		tx_data_buffer[75] = ui_vars->ui8_plus_long_press_switch;
 		tx_data_buffer[76] = 0;
 		tx_data_buffer[77] = 0;
 		tx_data_buffer[78] = 0;
@@ -907,7 +938,7 @@ void ble_uart_send(ui_vars_t *ui_vars) {
 static void ble_config_defaults(){
 
 ui8_g_configuration_display_reset_to_defaults = 1;
-ble_command = PACKET_CONFIG;
+ble_command = NO_PACKET;
 
 }
 static void ble_reset_trip_stats()
@@ -924,7 +955,12 @@ static void ble_motor_test(uint8_t *p_data)
 
       ui_vars->ui8_riding_mode = p_data[1];
 	  ui_vars->ui8_calibration_duty_cycle_target = p_data[2];
-	  
+	  if (ui_vars->ui8_riding_mode == MOTOR_CALIBRATION_MODE){
+	  ble_command = PACKET_MOTOR;
+	  g_motor_init_state = MOTOR_INIT_CALIBRATION;
+	  }else{ble_command = NO_PACKET;
+	  g_motor_init_state = MOTOR_INIT_READY;
+	  }
 }
 	  
 static void ble_nav_info(uint8_t *p_data)
@@ -1003,6 +1039,7 @@ static void ble_config_set(uint8_t *p_data)
 	  ui_vars->ui8_motor_current_min_adc = data[15];
 	  ui_vars->wheel_max_speed_x10 = (uint16_t) (data[16] * 10);
       ui_vars->ui8_energy_saving_mode_level	=  data[17];
+	  ui_vars->ui8_plus_long_press_switch	=  data[18];
 	}
 	
 		if(data[1] == 0x03){

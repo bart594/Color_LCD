@@ -474,7 +474,7 @@ static void rt_calc_trip_stats(void) {
 
   // ... and convert to distance traveled
   uint32_t ui32_temp = wheel_ticks * ((uint32_t) rt_vars.ui16_wheel_perimeter) + ui32_remainder;
-
+ 
   // if traveled distance is more than 1 wheel turn update trip variables and reset
   if (wheel_ticks >= 1) { 
  
@@ -567,6 +567,8 @@ void rt_first_time_management(void) {
    
    // communication established  so we are sending config values
 	if ((ui8_m_usart1_received_first_package > 1) && (g_motor_init_state == MOTOR_INIT_NOT_READY)){
+		set_conversions();
+		prepare_torque_sensor_calibration_table();
 		ui8_packet_type = UART_PACKET_CONFIG;
 	    g_motor_init_state = MOTOR_INIT_STARTUP_CONFIG;
 	}
@@ -775,7 +777,7 @@ void copy_rt_to_ui_vars(void) {
 	rt_vars.ui8_street_mode_speed_limit = ui_vars.ui8_street_mode_speed_limit;
     rt_vars.ui8_street_mode_power_limit_div25 = ui_vars.ui8_street_mode_power_limit_div25;
     rt_vars.ui8_street_mode_throttle_enabled = ui_vars.ui8_street_mode_throttle_enabled;
-    rt_vars.ui8_riding_mode = ui_vars.ui8_riding_mode;
+	rt_vars.ui8_riding_mode = ui_vars.ui8_riding_mode;
 	rt_vars.ui8_optional_ADC_function = ui_vars.ui8_optional_ADC_function;
     rt_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100 = ui_vars.ui8_pedal_torque_per_10_bit_ADC_step_x100;
 	rt_vars.ui8_cruise_function_target_speed_kph = 	ui_vars.ui8_cruise_function_target_speed_kph;
@@ -906,7 +908,7 @@ void uart_data_clock(void) {
       ui8_m_usart1_received_first_package = 10;
     }
    
-	if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_STARTUP_CONFIG || MOTOR_UPDATE_CONFIG) 
+	if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_STARTUP_CONFIG || MOTOR_UPDATE_CONFIG || MOTOR_INIT_CALIBRATION) 
     rt_send_tx_package();
 	
     //now  we do all calculations that must be done after receiving data  
@@ -914,8 +916,9 @@ void uart_data_clock(void) {
 	rt_processing();	
   
 #ifdef SW102
-    if (g_motor_init_state == MOTOR_INIT_READY)
+    if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_CALIBRATION){
 	ble_uart_send(&ui_vars);
+	}
 #endif	
 	}
 
@@ -944,8 +947,8 @@ void rt_processing(void)
   rt_first_time_management();
   rt_calc_battery_soc();
 }
-
 void prepare_torque_sensor_calibration_table(void) {
+
   static bool first_time = true;
 
   // we need to make this atomic

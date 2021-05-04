@@ -55,13 +55,6 @@ static void mainScreenOnEnter() {
     .field = &batteryField, \
 }, \
 { \
-  .x = 38, .y = 2, \
-  .width = 24, .height = -1, \
-  .align_x = AlignRight, \
-  .font = &REGULAR_TEXT_FONT, \
-  .field = &socField \
-}, \
-{ \
 	.x = 33, .y = 2, \
 	.width = -5, .height = -1, \
 	.font = &REGULAR_TEXT_FONT, \

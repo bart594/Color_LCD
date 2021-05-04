@@ -26,7 +26,6 @@
 #include "timer.h"
 #include "rtc.h"
 #ifdef SW102
-#include "peer_manager.h"
 #include "ble_services.h"
 #endif
 
@@ -102,7 +101,7 @@ bool wd_failure_detected;
 // Fields - these might be shared my multiple screens
 //
 
-Field socField = FIELD_DRAWTEXT_RW();
+
 Field timeField = FIELD_DRAWTEXT_RW();
 #ifndef SW102
 Field assistLevelField = FIELD_READONLY_UINT("assist", &ui8_assist_level_emtb, "", false);
@@ -564,8 +563,8 @@ void lcd_main_screen(void) {
 #ifdef SW102
     if(!g_configscreen_state) 	
 	nav_distance();
-#else
 	assit_level_field();
+#else
 	emtb_assist();
 #endif
 	battery_display();
@@ -1163,7 +1162,11 @@ void warnings(void) {
 	if(ui_vars.ui8_nav_info_extra == 6 && nav_info_timeout > 0) {
 		setWarning(ColorNormal, "KEEP RIGHT");
 		return;
-	}	
+	}
+	if(ui_vars.ui8_nav_info_extra == 6 && nav_info_timeout > 0) {
+		setWarning(ColorNormal, "KEEP RIGHT");
+		return;
+	}		
 #endif	
 	
 	setWarning(ColorNormal, "");
@@ -1431,8 +1434,7 @@ void DisplayResetToDefaults(void) {
   if (ui8_g_configuration_display_reset_to_defaults) {
     ui8_g_configuration_display_reset_to_defaults = 0;
     eeprom_init_defaults();
-	ui_vars.ui16_street_mode_power_limit = ui_vars.ui8_street_mode_power_limit_div25 * 25;
-	ui_vars.ui16_target_max_battery_power = ui_vars.ui8_target_max_battery_power_div25 * 25;
+	g_motor_init_state = MOTOR_UPDATE_CONFIG;
   }
 }
 
@@ -1448,6 +1450,7 @@ void TripMemoriesReset(void) {
 	rt_vars.ui16_battery_power_avg = 0;
     rt_vars.ui16_pedal_power_avg = 0; 
 	rt_vars.ui16_pedal_cadence_avg = 0;
+	rt_vars.ui16_battery_energy_h_km_avg_x100 = 0;
 	
   }
 }
@@ -1483,7 +1486,8 @@ void DisplayResetBluetoothPeers(void) {
     // Warning: Use this (pm_peers_delete) function only when not connected or connectable. If a peer is or becomes connected
     // or a PM_PEER_DATA_FUNCTIONS function is used during this procedure (until the success or failure event happens),
     // the behavior is undefined.
-    pm_peers_delete();
+    delete_bonds();
+	//pm_peers_delete();
   }
 #endif
 }

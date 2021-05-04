@@ -255,11 +255,11 @@ void eeprom_init() {
 //	}
 
 	eeprom_init_variables();
-
-	set_conversions();
+	
+	//set_conversions();
 
 	// prepare torque_sensor_calibration_table as it will be used at begin to init the motor
-	prepare_torque_sensor_calibration_table();
+	//prepare_torque_sensor_calibration_table();
 }
 
 void eeprom_init_variables(void) {
@@ -279,6 +279,8 @@ void eeprom_init_variables(void) {
 			m_eeprom_data.ui8_time_field_enable;
     ui_vars->ui8_target_max_battery_power_div25 =
       m_eeprom_data.ui8_target_max_battery_power_div25;
+	//we need to copy values at start
+	ui_vars->ui16_target_max_battery_power = m_eeprom_data.ui8_target_max_battery_power_div25 * 25;
 	ui_vars->ui8_battery_max_current =
 			m_eeprom_data.ui8_battery_max_current;
 	ui_vars->ui16_battery_low_voltage_cut_off_x10 =
@@ -487,6 +489,8 @@ void eeprom_init_variables(void) {
       m_eeprom_data.ui8_street_mode_speed_limit;
   ui_vars->ui8_street_mode_power_limit_div25 =
       m_eeprom_data.ui8_street_mode_power_limit_div25;
+  //we need to copy values at start
+  ui_vars->ui16_street_mode_power_limit = m_eeprom_data.ui8_street_mode_power_limit_div25 * 25;
   ui_vars->ui8_street_mode_throttle_enabled =
       m_eeprom_data.ui8_street_mode_throttle_enabled;
   
@@ -558,8 +562,10 @@ void eeprom_write_variables(void) {
 	m_eeprom_data.ui32_odometer_x10 = ui_vars->ui32_odometer_x10;
 	m_eeprom_data.ui8_walk_assist_feature_enabled =
 			ui_vars->ui8_walk_assist_feature_enabled;
-	m_eeprom_data.ui8_riding_mode =
-			ui_vars->ui8_riding_mode;
+	//if hall calibration fails
+	if (ui_vars->.ui8_riding_mode != MOTOR_CALIBRATION_MODE)
+	m_eeprom_data.ui8_riding_mode =	ui_vars->ui8_riding_mode;
+	
 	m_eeprom_data.ui8_eMTB_assist_level =
 			ui_vars->ui8_eMTB_assist_level;
 	m_eeprom_data.ui8_optional_ADC_function =
@@ -714,7 +720,7 @@ void eeprom_init_defaults(void)
       sizeof(m_eeprom_data_defaults));
 
   eeprom_init_variables();
-  set_conversions();
+  //set_conversions();
   flash_write_words(&m_eeprom_data, sizeof(m_eeprom_data) / sizeof(uint32_t));
 #else
   // first force KEY value to 0

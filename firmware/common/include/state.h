@@ -41,6 +41,7 @@ typedef enum {
   MOTOR_INIT_STARTUP_CONFIG,
   MOTOR_UPDATE_CONFIG,
   MOTOR_INIT_ERROR,
+  MOTOR_INIT_CALIBRATION,
 } motor_init_state_t;
 
 extern volatile motor_init_state_t g_motor_init_state;
