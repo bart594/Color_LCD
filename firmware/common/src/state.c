@@ -573,7 +573,7 @@ void rt_first_time_management(void) {
 	// this will be executed only 1 time at startup
     else if ((ui8_g_motorVariablesStabilized) && (g_motor_init_state == MOTOR_INIT_STARTUP_CONFIG)) {
     // reset Wh value if battery voltage is over ui16_battery_voltage_reset_wh_counter_x10 (value configured by user)
-    if (++ui8_counter > 38){
+    if (++ui8_counter > 39){
 	if (((uint32_t) ui_vars.ui16_adc_battery_voltage) > ((uint32_t) ui_vars.ui16_battery_voltage_reset_wh_counter_x10 * 100)) 
       ui_vars.ui32_wh_x10_offset = 0;
       // all values hopefully sent

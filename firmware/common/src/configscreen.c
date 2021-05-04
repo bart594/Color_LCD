@@ -148,7 +148,6 @@ static Field displayMenus[] =
 #endif		
 		FIELD_EDITABLE_ENUM(_S("Reset to defaults", "Reset def"), &ui8_g_configuration_display_reset_to_defaults, "no", "yes"),
         FIELD_EDITABLE_ENUM(_S("Plus long press", "PlusLngPr"), &ui_vars.ui8_plus_long_press_switch, "qmenu", "nxtscr", "light"),		
-		//FIELD_EDITABLE_ENUM("Text", &ui_vars.ui8_battery_soc_enable, "disable", "SOC %", "volts"),
 		FIELD_EDITABLE_UINT(_S("Auto power off", "Auto p off"), &ui_vars.ui8_lcd_power_off_time_minutes, "mins", 0, 255),		
 		FIELD_EDITABLE_ENUM("Units", &ui_vars.ui8_units_type, "SI", "Imperial"),
 #ifndef SW102

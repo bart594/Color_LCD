@@ -70,7 +70,7 @@ void walk_assist_state(void);
 void power(void);
 void time(void);
 void wheel_speed(void);
-void battery_soc(void);
+void time_m_click(void);
 void up_time(void);
 void trip_time(void);
 void emtb_assist(void);
@@ -304,7 +304,8 @@ static void bootScreenOnPreUpdate() {
 
  #ifdef SW102
 	if((g_motor_init_state == MOTOR_INIT_STARTUP_CONFIG) && ui8_g_motorVariablesStabilized)
-	ui8_m_show_logo++;
+		if(++ui8_m_show_logo > 9)
+	       ui8_m_show_logo = 9;
 #endif
    	if((g_motor_init_state == MOTOR_INIT_STARTUP_CONFIG) || (g_motor_init_state == MOTOR_INIT_NOT_READY))
   	fieldPrintf(&bootStatus2, _S("Waiting", "Waiting"));
@@ -558,15 +559,15 @@ void set_conversions() {
 
 void lcd_main_screen(void) {
 	time();
+	time_m_click();
 	walk_assist_state();
 #ifdef SW102
     if(!g_configscreen_state) 	
 	nav_distance();
-	assit_level_field();
 #else
+	assit_level_field();
 	emtb_assist();
 #endif
-	battery_soc();
 	battery_display();
 	warnings();
 	up_time();
@@ -1168,24 +1169,33 @@ void warnings(void) {
 	setWarning(ColorNormal, "");
 }
 
-void battery_soc(void) {
-  switch (ui_vars.ui8_battery_soc_enable) {
+void time_m_click(void) {
+#ifdef SW102	
+  bool mpressed = SCREENFN_FORCE_LABELS;
+  
+  if(mpressed){
+  switch (ui_vars.ui8_time_field_enable) {
     default:
     case 0:
-      // clear the area
-      fieldPrintf(&socField, "");
       break;
 
     case 1:
-      fieldPrintf(&socField, "%3d%%", ui8_g_battery_soc);
-      break;
-
-    case 2:
-      fieldPrintf(&socField, "%u.%1uV",
+      fieldPrintf(&timeField, "%u.%1uV",
           ui_vars.ui16_battery_voltage_soc_x10 / 10,
           ui_vars.ui16_battery_voltage_soc_x10 % 10);
       break;
+	
+	case 2:
+      fieldPrintf(&timeField, "%u.%1uV",
+          ui_vars.ui16_battery_voltage_soc_x10 / 10,
+          ui_vars.ui16_battery_voltage_soc_x10 % 10);
+      break;
+
+    case 3:
+      break;
   }
+ } 
+#endif	
 }
 
 
