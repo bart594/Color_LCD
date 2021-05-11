@@ -563,7 +563,7 @@ void eeprom_write_variables(void) {
 	m_eeprom_data.ui8_walk_assist_feature_enabled =
 			ui_vars->ui8_walk_assist_feature_enabled;
 	//if hall calibration fails
-	if (ui_vars->.ui8_riding_mode != MOTOR_CALIBRATION_MODE)
+	if (ui_vars->ui8_riding_mode != MOTOR_CALIBRATION_MODE)
 	m_eeprom_data.ui8_riding_mode =	ui_vars->ui8_riding_mode;
 	
 	m_eeprom_data.ui8_eMTB_assist_level =
