@@ -42,8 +42,10 @@
 #include "ble_nus.h"
 #include "ble_srv_common.h"
 
-#define BLE_UUID_NUS_TX_CHARACTERISTIC 0x0002                      /**< The UUID of the TX Characteristic. */
-#define BLE_UUID_NUS_RX_CHARACTERISTIC 0x0003                      /**< The UUID of the RX Characteristic. */
+#define BLE_UUID_NUS_TX_CHARACTERISTIC 	 	  0x0002                      /**< The UUID of the TX Characteristic. */
+#define BLE_UUID_NUS_RX_CHARACTERISTIC 	 	  0x0003                      /**< The UUID of the RX Characteristic. */
+#define BLE_UUID_NUS_RX_STATUS_CHARACTERISTIC 0x0004                      /**< The UUID of the RX STATUS Characteristic. */
+
 
 #define BLE_NUS_MAX_RX_CHAR_LEN        BLE_NUS_MAX_DATA_LEN        /**< Maximum length of the RX Characteristic (in bytes). */
 #define BLE_NUS_MAX_TX_CHAR_LEN        BLE_NUS_MAX_DATA_LEN        /**< Maximum length of the TX Characteristic (in bytes). */
@@ -91,8 +93,24 @@ static void on_write(ble_nus_t * p_nus, ble_evt_t * p_ble_evt)
 {
     ble_gatts_evt_write_t * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
+	
     if (
-        (p_evt_write->handle == p_nus->rx_handles.cccd_handle)
+        (p_evt_write->handle == (p_nus->rx_handles.cccd_handle))
+        &&
+        (p_evt_write->len == 2)
+       )
+    {
+        if (ble_srv_is_notification_enabled(p_evt_write->data))
+        {
+            p_nus->is_notification_enabled = true;
+        }
+        else
+        {
+            p_nus->is_notification_enabled = false;
+        }
+    }
+	 else  if (
+        (p_evt_write->handle == (p_nus->status_handles.cccd_handle))
         &&
         (p_evt_write->len == 2)
        )
@@ -181,6 +199,59 @@ static uint32_t rx_char_add(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init
     /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
 }
 
+static uint32_t status_char_add(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
+{
+    /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
+    ble_gatts_char_md_t char_md;
+    ble_gatts_attr_md_t cccd_md;
+    ble_gatts_attr_t    attr_char_value;
+    ble_uuid_t          ble_uuid;
+    ble_gatts_attr_md_t attr_md;
+
+    memset(&cccd_md, 0, sizeof(cccd_md));
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+
+    cccd_md.vloc = BLE_GATTS_VLOC_STACK;
+
+    memset(&char_md, 0, sizeof(char_md));
+
+    char_md.char_props.notify = 1;
+    char_md.p_char_user_desc  = NULL;
+    char_md.p_char_pf         = NULL;
+    char_md.p_user_desc_md    = NULL;
+    char_md.p_cccd_md         = &cccd_md;
+    char_md.p_sccd_md         = NULL;
+
+    ble_uuid.type = p_nus->uuid_type;
+    ble_uuid.uuid = BLE_UUID_NUS_RX_STATUS_CHARACTERISTIC;
+
+    memset(&attr_md, 0, sizeof(attr_md));
+
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+
+    attr_md.vloc    = BLE_GATTS_VLOC_STACK;
+    attr_md.rd_auth = 0;
+    attr_md.wr_auth = 0;
+    attr_md.vlen    = 1;
+
+    memset(&attr_char_value, 0, sizeof(attr_char_value));
+
+    attr_char_value.p_uuid    = &ble_uuid;
+    attr_char_value.p_attr_md = &attr_md;
+    attr_char_value.init_len  = sizeof(uint8_t);
+    attr_char_value.init_offs = 0;
+    attr_char_value.max_len   = BLE_NUS_MAX_RX_CHAR_LEN;
+
+    return sd_ble_gatts_characteristic_add(p_nus->service_handle,
+                                           &char_md,
+                                           &attr_char_value,
+                                           &p_nus->status_handles);
+    /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
+}
+
 
 /**@brief Function for adding TX characteristic.
  *
@@ -234,46 +305,7 @@ static uint32_t tx_char_add(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init
 }
 
 
-static uint32_t push_data_packets(void)
-{
-        uint32_t return_code = NRF_SUCCESS;
-        uint32_t packet_length = m_max_data_length;
-        uint32_t packet_size = 0;
 
-        while(return_code == NRF_SUCCESS)
-        {
-                //printf("file_pos = %d, packet_size = %d\n", file_pos, packet_size);
-                //printf("\nb %d, %d, %d , %d\n", file_size, file_pos, packet_size, packet_length);
-
-                if((file_size - file_pos) > packet_length)
-                {
-                        packet_size = packet_length;
-                }
-                else if((file_size - file_pos) >= 0)
-                {
-                        packet_size = file_size - file_pos;
-                }
-                else
-                {
-                        packet_size = 0;
-                }
-
-                if(packet_size > 0)
-                {
-                        return_code = ble_nus_string_send(mp_nus, &file_data[file_pos], packet_size);
-                        if(return_code == NRF_SUCCESS)
-                        {
-                                file_pos += packet_size;
-                        }
-                }
-                else
-                {
-                        file_size = 0;
-                        break;
-                }
-        }
-        return return_code;
-}
 
 
 void ble_nus_on_ble_evt(ble_nus_t * p_nus, ble_evt_t * p_ble_evt)
@@ -349,15 +381,99 @@ uint32_t ble_nus_init(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
     // Add the TX Characteristic.
     err_code = tx_char_add(p_nus, p_nus_init);
     VERIFY_SUCCESS(err_code);
+	
+    // Add the STATUS Characteristic.
+    err_code = status_char_add(p_nus, p_nus_init);
+    VERIFY_SUCCESS(err_code);
 
     return NRF_SUCCESS;
+}
+
+
+static uint32_t push_data_packets(void)
+{
+        uint32_t return_code = NRF_SUCCESS;
+        uint32_t packet_length = m_max_data_length;
+        uint32_t packet_size = 0;
+
+        while(return_code == NRF_SUCCESS)
+        {
+                //printf("file_pos = %d, packet_size = %d\n", file_pos, packet_size);
+                //printf("\nb %d, %d, %d , %d\n", file_size, file_pos, packet_size, packet_length);
+
+                if((file_size - file_pos) > packet_length)
+                {
+                        packet_size = packet_length;
+                }
+                else if((file_size - file_pos) >= 0)
+                {
+                        packet_size = file_size - file_pos;
+                }
+                else
+                {
+                        packet_size = 0;
+                }
+
+                if(packet_size > 0)
+                {
+                        return_code = ble_nus_string_send(mp_nus, &file_data[file_pos], packet_size);
+                        if(return_code == NRF_SUCCESS)
+                        {
+                                file_pos += packet_size;
+                        }
+                }
+                else
+                {
+                        file_size = 0;
+                        break;
+                }
+        }
+        return return_code;
+}
+
+uint32_t ble_status_data_send(ble_nus_t * p_nus, uint8_t * p_string, uint16_t length)
+{
+    ble_gatts_hvx_params_t hvx_params;
+    uint32_t err_code;
+
+        if(nrf_error_resources)
+        {
+                return NRF_ERROR_RESOURCES;
+        }
+
+    VERIFY_PARAM_NOT_NULL(p_nus);
+
+    if ((p_nus->conn_handle == BLE_CONN_HANDLE_INVALID) || (!p_nus->is_notification_enabled))
+    {
+        return NRF_ERROR_INVALID_STATE;
+    }
+
+    if (length > BLE_NUS_MAX_DATA_LEN)
+    {
+        return NRF_ERROR_INVALID_PARAM;
+    }
+
+    memset(&hvx_params, 0, sizeof(hvx_params));
+
+    hvx_params.handle = p_nus->status_handles.value_handle;
+    hvx_params.p_data = p_string;
+	hvx_params.p_len  = &length;
+    hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+
+        err_code = sd_ble_gatts_hvx(p_nus->conn_handle, &hvx_params);
+
+        if(err_code == NRF_ERROR_RESOURCES)
+        {
+                nrf_error_resources = true;
+        }
+        return err_code;
 }
 
 
 uint32_t ble_nus_string_send(ble_nus_t * p_nus, uint8_t * p_string, uint16_t length)
 {
     ble_gatts_hvx_params_t hvx_params;
-        uint32_t err_code;
+    uint32_t err_code;
 
         if(nrf_error_resources)
         {

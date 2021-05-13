@@ -916,9 +916,7 @@ void uart_data_clock(void) {
 	rt_processing();	
   
 #ifdef SW102
-    if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_CALIBRATION){
-	ble_uart_send(&ui_vars);
-	}
+	ble_tx_data_send();
 #endif	
 	}
 
@@ -927,6 +925,16 @@ void uart_data_clock(void) {
     // and wait for 10 seconds of missed packets.
     if ((g_motor_init_state == MOTOR_INIT_READY) && (num_missed_packets++ == 100))
          APP_ERROR_HANDLER(FAULT_LOSTRX);
+}
+
+
+void ble_tx_data_send(void)
+{
+    if (g_motor_init_state == MOTOR_INIT_READY || MOTOR_INIT_CALIBRATION)
+	ble_uart_send(&ui_vars);
+	
+    if (g_motor_init_state == MOTOR_INIT_READY)	
+	ble_send_status_data(&ui_vars);
 }
 
 

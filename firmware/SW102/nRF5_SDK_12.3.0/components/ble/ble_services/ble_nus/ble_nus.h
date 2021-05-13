@@ -99,6 +99,7 @@ struct ble_nus_s
     uint16_t                 service_handle;          /**< Handle of Nordic UART Service (as provided by the SoftDevice). */
     ble_gatts_char_handles_t tx_handles;              /**< Handles related to the TX characteristic (as provided by the SoftDevice). */
     ble_gatts_char_handles_t rx_handles;              /**< Handles related to the RX characteristic (as provided by the SoftDevice). */
+	ble_gatts_char_handles_t status_handles;            /**< Handles related to the RX STATUS characteristic (as provided by the SoftDevice). */
     uint16_t                 conn_handle;             /**< Handle of the current connection (as provided by the SoftDevice). BLE_CONN_HANDLE_INVALID if not in a connection. */
     bool                     is_notification_enabled; /**< Variable to indicate if the peer has enabled notification of the RX characteristic.*/
     ble_nus_data_handler_t   data_handler;            /**< Event handler to be called for handling received data. */
@@ -140,8 +141,9 @@ void ble_nus_on_ble_evt(ble_nus_t * p_nus, ble_evt_t * p_ble_evt);
  * @retval NRF_SUCCESS If the string was sent successfully. Otherwise, an error code is returned.
  */
 uint32_t ble_nus_string_send(ble_nus_t * p_nus, uint8_t * p_string, uint16_t length);
-
+uint32_t ble_status_data_send(ble_nus_t * p_nus, uint8_t * p_string, uint16_t length);
 uint32_t ble_nus_send_file(ble_nus_t * p_nus, uint8_t * p_data, uint32_t data_length, uint32_t max_packet_length);
+static uint32_t push_data_packets(void);
 
 
 #ifdef __cplusplus

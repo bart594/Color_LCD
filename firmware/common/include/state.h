@@ -419,6 +419,7 @@ typedef struct {
   uint8_t patch;
 } tsdz2_firmware_version_t;
 
+void ble_tx_data_send(void);
 void rt_processing(void);
 void uart_data_clock(void);
 void rt_processing_stop(void);
